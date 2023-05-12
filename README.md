@@ -14,23 +14,28 @@ Haskell &rarr; Rust
 This, remarkably, compiles and runs without a hitch:
 ```rust
 use rsmonad::*;
-fn successor(x: u8) -> Option<u8> {
-    x.checked_add(1)
+fn successor(x: u8) -> Maybe<u8> {
+    x.checked_add(1).map_or(Nothing, Just)
 }
 assert_eq!(
-    Just(3) >> successor >> Option::unwrap,
+    Just(3) >> successor,
     Just(4),
 );
 assert_eq!(
-    Nothing >> successor >> Option::unwrap,
+    Nothing >> successor,
+    Nothing,
+);
+assert_eq!(
+    Just(255) >> successor,
     Nothing,
 );
 ```
 
 This as well, if you choose to enable the non-`no-std` bits:
 ```rust
-fn afraid_of_circles(x: u8) {
+fn afraid_of_circles(x: u8) -> BlastDoor<()> {
     if x == 0 { panic!("aaaaaa!"); }
+    Phew(())
 }
 assert_eq!(
     Phew(42) >> afraid_of_circles,
@@ -39,5 +44,21 @@ assert_eq!(
 assert_eq!(
     Phew(0) >> afraid_of_circles,
     Kaboom,
+);
+```
+
+The logic of Haskell lists with the speed of Rust vectors:
+```rust
+// from the wonderful Haskell docs: https://en.wikibooks.org/wiki/Haskell/Understanding_monads/List
+fn bunny(s: &str) -> List<&str> {
+    List(vec![s, s, s])
+}
+assert_eq!(
+    List::consume("bunny") >> bunny,
+    List(vec!["bunny", "bunny", "bunny"]),
+);
+assert_eq!(
+    List::consume("bunny") >> bunny >> bunny,
+    List(vec!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"]),
 );
 ```

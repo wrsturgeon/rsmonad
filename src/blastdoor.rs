@@ -7,9 +7,18 @@ use core::panic::{RefUnwindSafe, UnwindSafe};
 /// # Use
 /// ```rust
 /// use rsmonad::*;
-/// fn afraid_of_circles(x: u8) { if x == 0 { panic!("aaaaaa!"); } }
-/// assert_eq!(Phew(()), Phew(42) >> afraid_of_circles);
-/// assert_eq!(Kaboom, Phew(0) >> afraid_of_circles);
+/// fn afraid_of_circles(x: u8) -> BlastDoor<()> {
+///     if x == 0 { panic!("aaaaaa!"); }
+///     Phew(())
+/// }
+/// assert_eq!(
+///     Phew(42) >> afraid_of_circles,
+///     Phew(())
+/// );
+/// assert_eq!(
+///     Phew(0) >> afraid_of_circles,
+///     Kaboom,
+/// );
 /// ```
 #[allow(clippy::exhaustive_enums)]
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -26,9 +35,12 @@ pub use BlastDoor::{Kaboom, Phew};
 impl<A: UnwindSafe> UnwindMonad<A> for BlastDoor<A> {
     type Constructor<B: UnwindSafe> = BlastDoor<B>;
     #[inline(always)]
-    fn bind<B: UnwindSafe, F: Fn(A) -> B + RefUnwindSafe>(self, f: F) -> Self::Constructor<B> {
+    fn bind<B: UnwindSafe, F: Fn(A) -> BlastDoor<B> + RefUnwindSafe>(
+        self,
+        f: F,
+    ) -> Self::Constructor<B> {
         if let Phew(x) = self {
-            std::panic::catch_unwind(|| f(x)).map_or(Kaboom, Phew)
+            std::panic::catch_unwind(|| f(x)).map_or(Kaboom, |x| x)
         } else {
             Kaboom
         }
@@ -39,7 +51,7 @@ impl<A: UnwindSafe> UnwindMonad<A> for BlastDoor<A> {
     }
 }
 
-impl<A: UnwindSafe, B: UnwindSafe, F: Fn(A) -> B + RefUnwindSafe> core::ops::Shr<F>
+impl<A: UnwindSafe, B: UnwindSafe, F: Fn(A) -> BlastDoor<B> + RefUnwindSafe> core::ops::Shr<F>
     for BlastDoor<A>
 {
     type Output = BlastDoor<B>;
@@ -48,6 +60,17 @@ impl<A: UnwindSafe, B: UnwindSafe, F: Fn(A) -> B + RefUnwindSafe> core::ops::Shr
         self.bind(rhs)
     }
 }
+
+// TODO: if specialization or negative traits ever get implemented
+/*
+impl<A: UnwindSafe, F: Fn(A) -> () + RefUnwindSafe> core::ops::Shr<F> for BlastDoor<A> {
+    type Output = BlastDoor<()>;
+    #[inline(always)]
+    fn shr(self, rhs: F) -> Self::Output {
+        self.bind(rhs)
+    }
+}
+*/
 
 impl<A: UnwindSafe, B: UnwindSafe> core::ops::BitAnd<BlastDoor<B>> for BlastDoor<A> {
     type Output = BlastDoor<B>;

@@ -7,9 +7,21 @@ use crate::Monad;
 /// Similar to Rust's `Option::map`:
 /// ```rust
 /// use rsmonad::*;
-/// fn successor(x: u8) -> Option<u8> { x.checked_add(1) }
-/// assert_eq!(Just(4), Just(3) >> successor >> Option::unwrap);
-/// assert_eq!(Nothing, Nothing >> successor >> Option::unwrap);
+/// fn successor(x: u8) -> Maybe<u8> {
+///     x.checked_add(1).map_or(Nothing, Just)
+/// }
+/// assert_eq!(
+///     Just(3) >> successor,
+///     Just(4),
+/// );
+/// assert_eq!(
+///     Nothing >> successor,
+///     Nothing,
+/// );
+/// assert_eq!(
+///     Just(255) >> successor,
+///     Nothing,
+/// );
 /// ```
 #[allow(clippy::exhaustive_enums)]
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -26,9 +38,9 @@ pub use Maybe::{Just, Nothing};
 impl<A> Monad<A> for Maybe<A> {
     type Constructor<B> = Maybe<B>;
     #[inline(always)]
-    fn bind<B, F: Fn(A) -> B>(self, f: F) -> Self::Constructor<B> {
+    fn bind<B, F: Fn(A) -> Self::Constructor<B>>(self, f: F) -> Self::Constructor<B> {
         if let Just(x) = self {
-            Just(f(x))
+            f(x)
         } else {
             Nothing
         }
@@ -39,7 +51,7 @@ impl<A> Monad<A> for Maybe<A> {
     }
 }
 
-impl<A, B, F: Fn(A) -> B> core::ops::Shr<F> for Maybe<A> {
+impl<A, B, F: Fn(A) -> Maybe<B>> core::ops::Shr<F> for Maybe<A> {
     type Output = Maybe<B>;
     #[inline(always)]
     fn shr(self, rhs: F) -> Self::Output {

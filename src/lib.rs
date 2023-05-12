@@ -21,8 +21,10 @@
 
 use same_as::SameAs;
 
+mod list;
 mod maybe;
 
+pub use list::*;
 pub use maybe::*;
 
 #[cfg(feature = "std")]
@@ -43,7 +45,7 @@ pub trait Monad<A>: SameAs<Self::Constructor<A>> {
     /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
     type Constructor<B>: Monad<B>;
     /// Mutate internal state with some function.
-    fn bind<B, F: Fn(A) -> B>(self, f: F) -> Self::Constructor<B>;
+    fn bind<B, F: Fn(A) -> Self::Constructor<B>>(self, f: F) -> Self::Constructor<B>;
     /// Construct a monad from a value.
     fn consume(a: A) -> Self;
 }
@@ -57,7 +59,10 @@ pub trait UnwindMonad<A: UnwindSafe>: SameAs<Self::Constructor<A>> {
     /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
     type Constructor<B: UnwindSafe>: UnwindMonad<B>;
     /// Mutate internal state with some function.
-    fn bind<B: UnwindSafe, F: Fn(A) -> B + RefUnwindSafe>(self, f: F) -> Self::Constructor<B>;
+    fn bind<B: UnwindSafe, F: Fn(A) -> Self::Constructor<B> + RefUnwindSafe>(
+        self,
+        f: F,
+    ) -> Self::Constructor<B>;
     /// Construct a monad from a value.
     fn consume(a: A) -> Self;
 }
