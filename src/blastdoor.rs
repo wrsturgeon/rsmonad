@@ -33,14 +33,26 @@ impl<A: UnwindSafe> UnwindMonad<A> for BlastDoor<A> {
             Kaboom
         }
     }
+    #[inline(always)]
+    fn consume(a: A) -> Self {
+        Phew(a)
+    }
 }
 
 impl<A: UnwindSafe, B: UnwindSafe, F: Fn(A) -> B + RefUnwindSafe> core::ops::Shr<F>
     for BlastDoor<A>
 {
-    type Output = <Self as UnwindMonad<A>>::Constructor<B>;
+    type Output = BlastDoor<B>;
     #[inline(always)]
     fn shr(self, rhs: F) -> Self::Output {
         self.bind(rhs)
+    }
+}
+
+impl<A: UnwindSafe, B: UnwindSafe> core::ops::BitAnd<BlastDoor<B>> for BlastDoor<A> {
+    type Output = BlastDoor<B>;
+    #[inline(always)]
+    fn bitand(self, rhs: BlastDoor<B>) -> Self::Output {
+        rhs
     }
 }

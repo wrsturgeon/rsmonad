@@ -1,11 +1,15 @@
 # Monads in Rust
 
-Haskell-style, but with `bind` as `>>` instead of `>>=`.
-Rust requires `>>=` to be self-modifying and not to return a value.
-This of course means that Haskell's `>>` must go by another name, if at all.
-Currently `>>` and `return` are not yet implemented and in the design stage.
+Haskell-style monads with Rust syntax.
 
-# Examples
+## Syntax
+Rust requires `>>=` to be self-modifying and not to return a value, so here's the following conversion table:
+Haskell &rarr; Rust
+`>>=` &rarr; `>>`
+`>>` &rarr; `&`
+`return` &rarr; `consume`
+
+## Examples
 
 This, remarkably, compiles and runs without a hitch:
 ```rust

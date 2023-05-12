@@ -38,13 +38,14 @@ pub use blastdoor::*;
 /// (>>)   :: m a ->       m b  -> m b
 /// return :: a -> m a
 /// ```
-/// Note we read `>>=` as `bind` and that it's syntactially identical to Rust's right-shift-assign operator.
 pub trait Monad<A>: SameAs<Self::Constructor<A>> {
     // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> B> core::ops::Shr<F>`
     /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
     type Constructor<B>: Monad<B>;
     /// Mutate internal state with some function.
     fn bind<B, F: Fn(A) -> B>(self, f: F) -> Self::Constructor<B>;
+    /// Construct a monad from a value.
+    fn consume(a: A) -> Self;
 }
 
 #[cfg(feature = "std")]
@@ -57,4 +58,6 @@ pub trait UnwindMonad<A: UnwindSafe>: SameAs<Self::Constructor<A>> {
     type Constructor<B: UnwindSafe>: UnwindMonad<B>;
     /// Mutate internal state with some function.
     fn bind<B: UnwindSafe, F: Fn(A) -> B + RefUnwindSafe>(self, f: F) -> Self::Constructor<B>;
+    /// Construct a monad from a value.
+    fn consume(a: A) -> Self;
 }

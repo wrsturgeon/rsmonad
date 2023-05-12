@@ -33,12 +33,24 @@ impl<A> Monad<A> for Maybe<A> {
             Nothing
         }
     }
+    #[inline(always)]
+    fn consume(a: A) -> Self {
+        Just(a)
+    }
 }
 
 impl<A, B, F: Fn(A) -> B> core::ops::Shr<F> for Maybe<A> {
-    type Output = <Self as Monad<A>>::Constructor<B>;
+    type Output = Maybe<B>;
     #[inline(always)]
     fn shr(self, rhs: F) -> Self::Output {
         self.bind(rhs)
+    }
+}
+
+impl<A, B> core::ops::BitAnd<Maybe<B>> for Maybe<A> {
+    type Output = Maybe<B>;
+    #[inline(always)]
+    fn bitand(self, rhs: Maybe<B>) -> Self::Output {
+        rhs
     }
 }
