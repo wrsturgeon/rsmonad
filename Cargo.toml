@@ -1,0 +1,18 @@
+[package]
+name = "rsmonad"
+version = "0.1.0"
+authors = ["Will Sturgeon <willstrgn@gmail.com>"]
+edition = "2021"
+description = "Haskell-style monads in Rust that support `>>=` & `>>` out of the box."
+license = "LGPL-3.0-or-later"
+repository = "https://github.com/wrsturgeon/rsmonad"
+readme = "README.md"
+keywords = ["types", "proofs", "math", "logic", "metaprogramming"]
+categories = ["mathematics", "encoding", "no-std", "compilers", "data-structures"]
+
+[dependencies]
+same-as = { path = "../same-as" }
+
+[features]
+default = []
+std = []
