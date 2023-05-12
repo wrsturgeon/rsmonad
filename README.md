@@ -3,10 +3,15 @@
 Haskell-style monads with Rust syntax.
 
 ## Syntax
+
 Rust requires `>>=` to be self-modifying and not to return a value, so here's the following conversion table:
+
 Haskell &rarr; Rust
+
 `>>=` &rarr; `>>`
+
 `>>` &rarr; `&`
+
 `return` &rarr; `consume`
 
 ## Examples
