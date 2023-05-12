@@ -1,6 +1,6 @@
 # Monads in Rust
 
-Haskell-style, but with `>>` as `bind` instead of `>>=`.
+Haskell-style, but with `bind` as `>>` instead of `>>=`.
 Rust requires `>>=` to be self-modifying and not to return a value.
 This of course means that Haskell's `>>` must go by another name, if at all.
 Currently `>>` and `return` are not yet implemented and in the design stage.
