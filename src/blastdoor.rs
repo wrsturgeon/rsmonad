@@ -40,7 +40,7 @@ impl<A: UnwindSafe> UnwindMonad<A> for BlastDoor<A> {
         f: F,
     ) -> Self::Constructor<B> {
         if let Phew(x) = self {
-            std::panic::catch_unwind(|| f(x)).map_or(Kaboom, |x| x)
+            std::panic::catch_unwind(|| f(x)).map_or(Kaboom, core::convert::identity)
         } else {
             Kaboom
         }
