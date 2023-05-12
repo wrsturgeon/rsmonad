@@ -1,0 +1,30 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build `no_std`
+      run: cargo build --verbose
+    - name: Build `std`
+      run: cargo build --verbose --features std
+    - name: Clippy `no_std`
+      run: cargo clippy --verbose
+    - name: Clippy `std`
+      run: cargo clippy --verbose --features std
+    - name: Test `no_std`
+      run: cargo test --verbose
+    - name: Test `std`
+      run: cargo test --verbose --features std
