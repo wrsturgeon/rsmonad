@@ -11,7 +11,7 @@ keywords = ["types", "proofs", "math", "logic", "metaprogramming"]
 categories = ["mathematics", "encoding", "no-std", "compilers", "data-structures"]
 
 [dependencies]
-same-as = { path = "../same-as" }
+same-as = ">=1"
 
 [features]
 default = []
