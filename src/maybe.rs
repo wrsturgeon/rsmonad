@@ -33,12 +33,12 @@ monad! {
 
     fn bind(self, f) {
         match self {
-            Just(a) => f(a.into()).into(),
+            Just(a) => f(a),
             Nothing => Nothing,
         }
     }
 
     fn consume(a) -> Self {
-        Just(a.into())
+        Just(a)
     }
 }

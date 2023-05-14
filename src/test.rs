@@ -12,12 +12,12 @@ monad! {
 
     fn bind(self, f) {
         match self {
-            Just(a) => f(a.into()).into(),
+            Just(a) => f(a),
             Nothing => Nothing,
         }
     }
 
-    fn consume(a) -> Self { Just(a.into()) }
+    fn consume(a) -> Self { Just(a) }
 }
 
 monad! {
@@ -26,18 +26,18 @@ monad! {
         val: A
     }
 
-    fn bind(self, f) { f(self.val.into()).into() }
+    fn bind(self, f) { f(self.val) }
 
-    fn consume(a) -> Self { Self { val: a.into() } }
+    fn consume(a) -> Self { Self { val: a } }
 }
 
 monad! {
     /// Encodes the answer to life, the universe, and everything
     pub struct TupleStruct(A);
 
-    fn bind(self, f) { f(self.0.into()).into() }
+    fn bind(self, f) { f(self.0) }
 
-    fn consume(a) -> Self { Self(a.into()) }
+    fn consume(a) -> Self { Self(a) }
 }
 
 // TODO: figure out how/whether to derive PartialEq for unions
