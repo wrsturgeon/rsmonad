@@ -17,7 +17,6 @@
     clippy::pattern_type_mismatch,
     clippy::question_mark_used
 )]
-#![allow(unreachable_code)] // TODO: REMOVE
 
 use proc_macro2::{Delimiter, Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
@@ -61,6 +60,15 @@ macro_rules! punct {
     };
 }
 
+/// Writes a path separator (::) to the given token stream.
+macro_rules! pathsep {
+    ($ts:expr) => {
+        Punct::new(':', Spacing::Joint).to_tokens($ts);
+        punct!(':').to_tokens($ts);
+    };
+}
+
+/// Writes #[inline(always)] to the given token stream.
 macro_rules! inline_always {
     ($ts:expr) => {
         punct!('#').to_tokens($ts);
@@ -78,8 +86,6 @@ macro_rules! inline_always {
 /// Transforms the original Rust-like AST into proper Rust with a monad implemented.
 #[allow(clippy::too_many_lines)] // TODO: refactor & remove
 fn transform(ts: TokenStream) -> Result<TokenStream, syn::Error> {
-    #![allow(unreachable_code)]
-
     let mut tokens = ts.into_iter();
 
     // Initialize an empty TokenStream
@@ -212,13 +218,11 @@ fn transform(ts: TokenStream) -> Result<TokenStream, syn::Error> {
         Group::new(Delimiter::Parenthesis, {
             let mut lints = TokenStream::new();
             ident!(clippy).to_tokens(&mut lints);
-            Punct::new(':', Spacing::Joint).to_tokens(&mut lints);
-            punct!(':').to_tokens(&mut lints);
+            pathsep!(&mut lints);
             ident!(exhaustive_enums).to_tokens(&mut lints);
             punct!(',').to_tokens(&mut lints);
             ident!(clippy).to_tokens(&mut lints);
-            Punct::new(':', Spacing::Joint).to_tokens(&mut lints);
-            punct!(':').to_tokens(&mut lints);
+            pathsep!(&mut lints);
             ident!(exhaustive_structs).to_tokens(&mut lints);
             lints
         })
@@ -268,7 +272,9 @@ fn transform(ts: TokenStream) -> Result<TokenStream, syn::Error> {
 
     let name = parse_data_structure_def(&mut tokens, &mut out)?;
 
-    parse_bind(&mut tokens, &mut out, name)?;
+    parse_bind(&mut tokens, &mut out, &name)?;
+
+    write_shr(&mut out, &name);
 
     if let Some(extra) = tokens.next() {
         bail!(extra.span(), "Macro should have ended before this token");
@@ -345,8 +351,7 @@ fn parse_enum(name: &Ident, group: &Group, out: &mut TokenStream) {
     ident!(pub).to_tokens(out);
     ident!(use).to_tokens(out);
     name.to_tokens(out);
-    Punct::new(':', Spacing::Joint).to_tokens(out);
-    punct!(':').to_tokens(out);
+    pathsep!(out);
     Group::new(Delimiter::Brace, {
         let mut ctors = TokenStream::new();
         for tt in group.stream() {
@@ -392,11 +397,14 @@ fn parse_union(name: &Ident, group: &Group, out: &mut TokenStream) {
 }
 
 /// Parse `fn bind(...` and write the `impl` block around it.
+#[allow(clippy::too_many_lines)]
 fn parse_bind(
     ts: &mut proc_macro2::token_stream::IntoIter,
     out: &mut TokenStream,
-    name: Ident,
+    name: &Ident,
 ) -> Result<(), syn::Error> {
+    #![allow(clippy::shadow_unrelated)]
+
     // Write the `impl` block heading from thin air
     ident!(impl).to_tokens(out);
     punct!('<').to_tokens(out);
@@ -405,8 +413,7 @@ fn parse_bind(
     // Punct::new(':', Spacing::Joint).to_tokens(out);
     // punct!(':').to_tokens(out);
     ident!(rsmonad).to_tokens(out);
-    Punct::new(':', Spacing::Joint).to_tokens(out);
-    punct!(':').to_tokens(out);
+    pathsep!(out);
     ident!(Monad).to_tokens(out);
     punct!('<').to_tokens(out);
     ident!(A).to_tokens(out);
@@ -618,4 +625,95 @@ fn parse_bind(
     }).to_tokens(out);
 
     Ok(())
+}
+
+/// Write a `>>` implementation.
+fn write_shr(out: &mut TokenStream, name: &Ident) {
+    // `impl<A, B, F: Fn(A) -> B> core::ops::Shr<F> for $name<A>`
+    ident!(impl).to_tokens(out);
+    punct!('<').to_tokens(out);
+    ident!(A).to_tokens(out);
+    punct!(',').to_tokens(out);
+    ident!(B).to_tokens(out);
+    punct!(',').to_tokens(out);
+    ident!(F).to_tokens(out);
+    punct!(':').to_tokens(out);
+    ident!(Fn).to_tokens(out);
+    Group::new(Delimiter::Parenthesis, ident!(A).into_token_stream()).to_tokens(out);
+    Punct::new('-', Spacing::Joint).to_tokens(out);
+    punct!('>').to_tokens(out);
+    name.to_tokens(out);
+    punct!('<').to_tokens(out);
+    ident!(B).to_tokens(out);
+    punct!('>').to_tokens(out);
+    punct!('>').to_tokens(out);
+    ident!(core).to_tokens(out);
+    pathsep!(out);
+    ident!(ops).to_tokens(out);
+    pathsep!(out);
+    ident!(Shr).to_tokens(out);
+    punct!('<').to_tokens(out);
+    ident!(F).to_tokens(out);
+    punct!('>').to_tokens(out);
+    ident!(for).to_tokens(out);
+    name.to_tokens(out);
+    punct!('<').to_tokens(out);
+    ident!(A).to_tokens(out);
+    punct!('>').to_tokens(out);
+
+    // impl block
+    Group::new(Delimiter::Brace, {
+        let mut ts = TokenStream::new();
+
+        // type Output = $name<B>;
+        ident!(type).to_tokens(&mut ts);
+        ident!(Output).to_tokens(&mut ts);
+        punct!('=').to_tokens(&mut ts);
+        name.to_tokens(&mut ts);
+        punct!('<').to_tokens(&mut ts);
+        ident!(B).to_tokens(&mut ts);
+        punct!('>').to_tokens(&mut ts);
+        punct!(';').to_tokens(&mut ts);
+
+        // fn shr(...
+        ident!(fn).to_tokens(&mut ts);
+        ident!(shr).to_tokens(&mut ts);
+        Group::new(Delimiter::Parenthesis, {
+            let mut args = TokenStream::new();
+            ident!(self).to_tokens(&mut args);
+            punct!(',').to_tokens(&mut args);
+            ident!(f).to_tokens(&mut args);
+            punct!(':').to_tokens(&mut args);
+            ident!(F).to_tokens(&mut args);
+            args
+        })
+        .to_tokens(&mut ts);
+        Punct::new('-', Spacing::Joint).to_tokens(&mut ts);
+        punct!('>').to_tokens(&mut ts);
+        name.to_tokens(&mut ts);
+        punct!('<').to_tokens(&mut ts);
+        ident!(B).to_tokens(&mut ts);
+        punct!('>').to_tokens(&mut ts);
+        Group::new(Delimiter::Brace, {
+            let mut body = TokenStream::new();
+            ident!(rsmonad).to_tokens(&mut body);
+            pathsep!(&mut body);
+            ident!(Monad).to_tokens(&mut body);
+            pathsep!(&mut body);
+            ident!(bind).to_tokens(&mut body);
+            Group::new(Delimiter::Parenthesis, {
+                let mut args = TokenStream::new();
+                ident!(self).to_tokens(&mut args);
+                punct!(',').to_tokens(&mut args);
+                ident!(f).to_tokens(&mut args);
+                args
+            })
+            .to_tokens(&mut body);
+            body
+        })
+        .to_tokens(&mut ts);
+
+        ts
+    })
+    .to_tokens(out);
 }

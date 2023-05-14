@@ -1,7 +1,6 @@
 //! Haskell-style monads that support `>>=` out of the box with Rust's `>>`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "nightly", feature(non_lifetime_binders))]
 #![deny(warnings)]
 #![warn(
     clippy::all,
@@ -19,7 +18,6 @@
     clippy::inline_always,
     clippy::pub_use
 )]
-#![cfg_attr(feature = "nightly", allow(incomplete_features))]
 
 extern crate self as rsmonad;
 
@@ -27,12 +25,10 @@ pub use rsmonad_macros::*;
 use same_as::SameAs;
 
 mod list;
-// mod maybe;
-mod maybe_macro;
+mod maybe;
 
 pub use list::*;
-// pub use maybe::*;
-pub use maybe_macro::*;
+pub use maybe::*;
 
 #[cfg(feature = "std")]
 mod with_std;
@@ -50,27 +46,7 @@ mod test;
 /// (>>)   :: m a ->       m b  -> m b
 /// return :: a -> m a
 /// ```
-#[cfg(not(feature = "nightly"))]
 pub trait Monad<A>: SameAs<Self::Constructor<A>> {
-    // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> B> core::ops::Shr<F>`
-    /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
-    type Constructor<B>: Monad<B>;
-    /// Mutate internal state with some function.
-    fn bind<B, F: Fn(A) -> Self::Constructor<B>>(self, f: F) -> Self::Constructor<B>;
-    /// Construct a monad from a value.
-    fn consume(a: A) -> Self;
-}
-
-/// Original Haskell definition:
-/// ```haskell
-/// class Monad m where
-/// (>>=)  :: m a -> (a -> m b) -> m b
-/// (>>)   :: m a ->       m b  -> m b
-/// return :: a -> m a
-/// ```
-#[cfg(feature = "nightly")]
-#[rustfmt::skip]// TODO: remove when non-lifetime binders stop fucking disappearing
-pub trait Monad<A>: for<F: Fn(A) -> B, B> core::ops::Shr<F> + SameAs<Self::Constructor<A>> {
     // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> B> core::ops::Shr<F>`
     /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
     type Constructor<B>: Monad<B>;

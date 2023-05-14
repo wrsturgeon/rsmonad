@@ -17,4 +17,3 @@ rsmonad-macros = { path = "rsmonad-macros" }
 [features]
 default = []
 std = []
-nightly = []
