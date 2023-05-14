@@ -92,22 +92,21 @@ fn transform(ts: TokenStream) -> Result<TokenStream, syn::Error> {
     let mut out = TokenStream::new();
 
     // Make sure there's at least some token in the invocation
-    if let Some(tt) = tokens.next() {
-        if let TokenTree::Punct(p) = tt {
-            // Translates three-comma docs into #[doc...
-            if p.as_char() != '#' {
-                bail!(
-                    p.span(),
-                    format_args!(
-                        "Expected documentation, which Rust would automatically translate to `#[doc...`, but the first character was {:#?}",
-                        p.as_char()
-                    )
+    let Some(tt) = tokens.next() else {
+        bail_na!("Empty invocation; add a monad definition");
+    };
+    if let TokenTree::Punct(ref p) = tt {
+        // Translates three-comma docs into #[doc...
+        if p.as_char() != '#' {
+            bail!(
+                p.span(),
+                format_args!(
+                    "Expected documentation, which Rust would automatically translate to `#[doc...`, but the first character was {:#?}",
+                    p.as_char()
                 )
-            }
-            p.to_tokens(&mut out);
+            )
         }
-    } else {
-        bail_na!("Empty invocation; add a monad definition")
+        p.to_tokens(&mut out);
     }
 
     // Parse docs
@@ -158,16 +157,19 @@ fn transform(ts: TokenStream) -> Result<TokenStream, syn::Error> {
             x.span(),
             format_args!("Expected documentation, which Rust would automatically translate to `#[doc...`, but the token after `#` was {x:#?}")
         ),
-        None => bail_na!("Expected documentation, which Rust would automatically translate to `#[doc...`, but found nothing")
+        None => bail!(tt.span(), "Expected documentation, which Rust would automatically translate to `#[doc...`, but found nothing")
     }
     // Continue parsing docs
-    let mut doc;
+    let mut doc = TokenTree::Ident(ident!(parse_error));
     'docs: loop {
         // Read the `#` in front of an attribute; safely break otherwise
         doc = if let Some(tt) = tokens.next() {
             tt
         } else {
-            bail_na!("Add a data structure definition after your docs")
+            bail!(
+                doc.span(),
+                "Add a data structure definition after your docs"
+            )
         };
         if let TokenTree::Punct(p) = &doc {
             if p.as_char() != '#' {
@@ -293,16 +295,25 @@ fn parse_data_structure_def(
     let structure = ts.next();
 
     // Get the type's name
-    let Some(TokenTree::Ident(name)) = ts.next() else {
-        bail_na!("Expected a name")
+    let Some(tt) = ts.next() else {
+        bail!(structure.span(), "Expected a name but found the end of the macro")
+    };
+    let TokenTree::Ident(ref name) = tt else {
+        bail!(tt.span(), "Expected a name")
     };
 
     // Parse the definition
-    let Some(TokenTree::Group(group)) = ts.next() else {
-        bail_na!("Expected a definition in braces, e.g. `{ Nothing, Just(A) }`")
+    let Some(tt) = ts.next() else {
+        bail!(tt.span(), "Expected a definition in braces, e.g. `{ Nothing, Just(A) }`")
+    };
+    let TokenTree::Group(ref group) = tt else {
+        bail!(tt.span(), "Expected a definition in braces, e.g. `{ Nothing, Just(A) }`")
     };
 
-    if let Some(TokenTree::Ident(i)) = structure {
+    let Some(tt) = structure else {
+        bail!(tt.span(), "Expected a data structure definition like a `struct`, `enum`, or similar");
+    };
+    if let TokenTree::Ident(i) = tt {
         if i == "enum" {
             parse_enum(&name, &group, out);
         } else if i == "struct" {
@@ -328,10 +339,13 @@ fn parse_data_structure_def(
             );
         }
     } else {
-        bail_na!("Expected a data structure definition like a `struct`, `enum`, or similar");
+        bail!(
+            tt.span(),
+            "Expected a data structure definition like a `struct`, `enum`, or similar"
+        );
     }
 
-    Ok(name)
+    Ok(name.clone())
 }
 
 /// Parse an enum, adding `<A>`.
@@ -441,8 +455,11 @@ fn parse_bind(
         punct!(';').to_tokens(&mut impl_block);
 
         // Parse the `fn` keyword
-        let Some(TokenTree::Ident(i)) = ts.next() else {
+        let Some(tt) = ts.next() else {
             bail_na!("Expected `fn bind(...` after the data structure definition");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `fn bind(...` after the data structure definition");
         };
         if i != "fn" {
             bail!(
@@ -454,11 +471,14 @@ fn parse_bind(
         i.to_tokens(&mut impl_block);
 
         // Parse the function name (bind)
-        let Some(TokenTree::Ident(i)) = ts.next() else {
-            bail_na!("Expected `fn bind(...` after the data structure definition");
+        let Some(tt) = ts.next() else {
+            bail!(i.span(), "Expected `fn bind(...` after the data structure definition");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `fn bind(...` after the data structure definition");
         };
         if i != "bind" {
-            bail_na!("Expected `fn bind(...` after the data structure definition");
+            bail!(i.span(), "Expected `fn bind(...` after the data structure definition");
         }
         i.to_tokens(&mut impl_block);
 
@@ -484,33 +504,45 @@ fn parse_bind(
         punct!('>').to_tokens(&mut impl_block);
 
         // Parse arguments
-        let Some(TokenTree::Group(g)) = ts.next() else {
-            bail_na!("Expected `fn bind(...` after the data structure definition");
+        let Some(tt) = ts.next() else {
+            bail!(i.span(), "Expected `fn bind(...` after the data structure definition");
+        };
+        let TokenTree::Group(g) = tt else {
+            bail!(tt.span(), "Expected `fn bind(...` after the data structure definition");
         };
         if g.delimiter() != Delimiter::Parenthesis {
             bail!(g.span(), "Expected `fn bind(...` after the data structure definition");
         }
         let mut args = g.stream().into_iter();
-        let Some(TokenTree::Ident(i)) = args.next() else {
-            bail_na!("Expected `fn bind(self, f) ...` after the data structure definition");
+        let Some(tt) = args.next() else {
+            bail!(g.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
         };
         if i != "self" {
             bail!(i.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
         }
-        let Some(TokenTree::Punct(p)) = args.next() else {
-            bail_na!("Expected `fn bind(self, f) ...` after the data structure definition");
+        let Some(tt) = args.next() else {
+            bail!(i.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
+        };
+        let TokenTree::Punct(p) = tt else {
+            bail!(tt.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
         };
         if p.as_char() != ',' {
             bail!(p.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
         }
-        let Some(TokenTree::Ident(i)) = args.next() else {
-            bail_na!("Expected `fn bind(self, f) ...` after the data structure definition");
+        let Some(tt) = args.next() else {
+            bail!(p.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
         };
         if i != "f" {
             bail!(i.span(), "Expected `fn bind(self, f) ...` after the data structure definition");
         }
-        if args.next().is_some() {
-            bail_na!("Argument list should stop at `(self, f)`");
+        if let Some(arg) = args.next() {
+            bail!(arg.span(), "Argument list should stop at `(self, f)`");
         }
         Group::new(Delimiter::Parenthesis, {
             let mut typed_args = TokenStream::new();
@@ -525,7 +557,7 @@ fn parse_bind(
 
         // Make sure there's no trailing return type
         let g = match ts.next() {
-            None => bail_na!("Expected a function definition block"),
+            None => bail!(i.span(), "Expected a function definition block"),
             Some(TokenTree::Group(g)) => g,
             Some(x) => bail!(x.span(), "Expected a definition block. `bind`'s return type is extremely difficult to write in Rust at the moment, so please let this macro write it for future compatibility.")
         };
@@ -545,8 +577,11 @@ fn parse_bind(
         g.to_tokens(&mut impl_block);
 
         // Parse `fn consume(...`
-        let Some(TokenTree::Ident(i)) = ts.next() else {
-            bail_na!("Expected `fn consume(...` after bind");
+        let Some(tt) = ts.next() else {
+            bail!(g.span(), "Expected `fn consume(...` after bind");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `fn consume(...` after bind");
         };
         if i != "fn" {
             bail!(
@@ -558,24 +593,33 @@ fn parse_bind(
         i.to_tokens(&mut impl_block);
 
         // Parse the function name (consume)
-        let Some(TokenTree::Ident(i)) = ts.next() else {
-            bail_na!("Expected `fn consume(...` after bind");
+        let Some(tt) = ts.next() else {
+            bail!(i.span(), "Expected `fn consume(...` after bind");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `fn consume(...` after bind");
         };
         if i != "consume" {
-            bail_na!("Expected `fn consume(...` after bind");
+            bail!(i.span(), "Expected `fn consume(...` after bind");
         }
         i.to_tokens(&mut impl_block);
 
         // Parse arguments
-        let Some(TokenTree::Group(g)) = ts.next() else {
-            bail_na!("Expected `fn consume(...` after bind");
+        let Some(tt) = ts.next() else {
+            bail!(i.span(), "Expected `fn consume(...` after bind");
+        };
+        let TokenTree::Group(g) = tt else {
+            bail!(tt.span(), "Expected `fn consume(...` after bind");
         };
         if g.delimiter() != Delimiter::Parenthesis {
             bail!(g.span(), "Expected `fn consume(...` after bind");
         }
         let mut args = g.stream().into_iter();
-        let Some(TokenTree::Ident(i)) = args.next() else {
-            bail_na!("Expected `fn consume(a) -> Self` after bind");
+        let Some(tt) = args.next() else {
+            bail!(g.span(), "Expected `fn consume(a) -> Self` after bind");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `fn consume(a) -> Self` after bind");
         };
         if i != "a" {
             bail!(i.span(), "Expected `fn consume(a) -> Self` after bind");
@@ -593,22 +637,31 @@ fn parse_bind(
         .to_tokens(&mut impl_block);
 
         // Parse return type (Self)
-        let Some(TokenTree::Punct(p)) = ts.next() else {
-            bail_na!("Expected `-> Self` after `fn consume(a)`");
+        let Some(tt) = ts.next() else {
+            bail!(i.span(), "Expected `-> Self` after `fn consume(a)`");
+        };
+        let TokenTree::Punct(p) = tt else {
+            bail!(tt.span(), "Expected `-> Self` after `fn consume(a)`");
         };
         if p.as_char() != '-' || p.spacing() != Spacing::Joint {
             bail!(p.span(), "Expected `-> Self` after `fn consume(a)`");
         }
         p.to_tokens(&mut impl_block);
-        let Some(TokenTree::Punct(p)) = ts.next() else {
-            bail_na!("Expected `-> Self` after `fn consume(a)`");
+        let Some(tt) = ts.next() else {
+            bail!(p.span(), "Expected `-> Self` after `fn consume(a)`");
+        };
+        let TokenTree::Punct(p) = tt else {
+            bail!(tt.span(), "Expected `-> Self` after `fn consume(a)`");
         };
         if p.as_char() != '>' || p.spacing() != Spacing::Alone {
             bail!(p.span(), "Expected `-> Self` after `fn consume(a)`");
         }
         p.to_tokens(&mut impl_block);
-        let Some(TokenTree::Ident(i)) = ts.next() else {
-            bail_na!("Expected `-> Self` after `fn consume(a)`");
+        let Some(tt) = ts.next() else {
+            bail!(p.span(), "Expected `-> Self` after `fn consume(a)`");
+        };
+        let TokenTree::Ident(i) = tt else {
+            bail!(tt.span(), "Expected `-> Self` after `fn consume(a)`");
         };
         if i != "Self" {
             bail!(i.span(), "Expected `-> Self` after `fn consume(a)`");
@@ -616,8 +669,11 @@ fn parse_bind(
         i.to_tokens(&mut impl_block);
 
         // Parse the definition block and paste it verbatim
-        let Some(TokenTree::Group(g)) = ts.next() else {
-            bail_na!("Expected a function definition block after `fn consume(a) -> Self`");
+        let Some(tt) = ts.next() else {
+            bail!(i.span(), "Expected a function definition block after `fn consume(a) -> Self`");
+        };
+        let TokenTree::Group(g) = tt else {
+            bail!(tt.span(), "Expected a function definition block after `fn consume(a) -> Self`");
         };
         g.to_tokens(&mut impl_block);
 
