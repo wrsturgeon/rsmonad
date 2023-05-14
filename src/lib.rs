@@ -16,6 +16,7 @@
     clippy::blanket_clippy_restriction_lints,
     clippy::implicit_return,
     clippy::inline_always,
+    clippy::mod_module_files,
     clippy::pub_use
 )]
 
