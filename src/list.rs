@@ -28,12 +28,12 @@ monad! {
     fn bind(self, f) {
         let mut v = Vec::new();
         for a in self.0 {
-            v.append(&mut f(a).0);
+            v.append(&mut f(a.into()).into().0);
         }
         List(v)
     }
 
     fn consume(a) -> Self {
-        Self(alloc::vec![a])
+        Self(alloc::vec![a.into()])
     }
 }

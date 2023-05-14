@@ -486,21 +486,35 @@ fn parse_bind(
         punct!('<').to_tokens(&mut impl_block);
         ident!(B).to_tokens(&mut impl_block);
         punct!(',').to_tokens(&mut impl_block);
+        ident!(FromA).to_tokens(&mut impl_block);
+        punct!(':').to_tokens(&mut impl_block);
+        ident!(From).to_tokens(&mut impl_block);
+        punct!('<').to_tokens(&mut impl_block);
+        ident!(A).to_tokens(&mut impl_block);
+        punct!('>').to_tokens(&mut impl_block);
+        punct!(',').to_tokens(&mut impl_block);
+        ident!(IntoMonadB).to_tokens(&mut impl_block);
+        punct!(':').to_tokens(&mut impl_block);
+        ident!(Into).to_tokens(&mut impl_block);
+        punct!('<').to_tokens(&mut impl_block);
+        name.to_tokens(&mut impl_block);
+        punct!('<').to_tokens(&mut impl_block);
+        ident!(B).to_tokens(&mut impl_block);
+        punct!('>').to_tokens(&mut impl_block);
+        punct!('>').to_tokens(&mut impl_block);
+        punct!(',').to_tokens(&mut impl_block);
         ident!(F).to_tokens(&mut impl_block);
         punct!(':').to_tokens(&mut impl_block);
         ident!(Fn).to_tokens(&mut impl_block);
         Group::new(Delimiter::Parenthesis, {
             let mut a = TokenStream::new();
-            ident!(A).to_tokens(&mut a);
+            ident!(FromA).to_tokens(&mut a);
             a
         })
         .to_tokens(&mut impl_block);
         Punct::new('-', Spacing::Joint).to_tokens(&mut impl_block);
         punct!('>').to_tokens(&mut impl_block);
-        name.to_tokens(&mut impl_block);
-        punct!('<').to_tokens(&mut impl_block);
-        ident!(B).to_tokens(&mut impl_block);
-        punct!('>').to_tokens(&mut impl_block);
+        ident!(IntoMonadB).to_tokens(&mut impl_block);
         punct!('>').to_tokens(&mut impl_block);
 
         // Parse arguments
@@ -627,11 +641,19 @@ fn parse_bind(
         if let Some(a) = args.next() {
             bail!(a.span(), "Argument list should stop at `(a)`");
         }
+        punct!('<').to_tokens(&mut impl_block);
+        ident!(IntoA).to_tokens(&mut impl_block);
+        punct!(':').to_tokens(&mut impl_block);
+        ident!(Into).to_tokens(&mut impl_block);
+        punct!('<').to_tokens(&mut impl_block);
+        ident!(A).to_tokens(&mut impl_block);
+        punct!('>').to_tokens(&mut impl_block);
+        punct!('>').to_tokens(&mut impl_block);
         Group::new(Delimiter::Parenthesis, {
             let mut typed_args = TokenStream::new();
             ident!(a).to_tokens(&mut typed_args);
             punct!(':').to_tokens(&mut typed_args);
-            ident!(A).to_tokens(&mut typed_args);
+            ident!(IntoA).to_tokens(&mut typed_args);
             typed_args
         })
         .to_tokens(&mut impl_block);

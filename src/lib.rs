@@ -52,24 +52,32 @@ pub trait Monad<A>: SameAs<Self::Constructor<A>> {
     /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
     type Constructor<B>: Monad<B>;
     /// Mutate internal state with some function.
-    fn bind<B, F: Fn(A) -> Self::Constructor<B>>(self, f: F) -> Self::Constructor<B>;
+    fn bind<B, FromA: From<A>, IntoMonadB: Into<Self::Constructor<B>>, F: Fn(FromA) -> IntoMonadB>(
+        self,
+        f: F,
+    ) -> Self::Constructor<B>;
     /// Construct a monad from a value.
-    fn consume(a: A) -> Self;
+    fn consume<IntoA: Into<A>>(a: IntoA) -> Self;
 }
 
 #[cfg(feature = "std")]
 use core::panic::{RefUnwindSafe, UnwindSafe};
-/// Identical to Monad above but with an inductive guarantee of panic-unwind safety.
+/// Identical to Monad but with an inductive guarantee of panic-unwind safety.
 #[cfg(feature = "std")]
 pub trait UnwindMonad<A: UnwindSafe>: SameAs<Self::Constructor<A>> {
     // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> B> core::ops::Shr<F>`
     /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
     type Constructor<B: UnwindSafe>: UnwindMonad<B>;
     /// Mutate internal state with some function.
-    fn bind<B: UnwindSafe, F: Fn(A) -> Self::Constructor<B> + RefUnwindSafe>(
+    fn bind<
+        B: UnwindSafe,
+        FromA: From<A>,
+        IntoMonadB: Into<Self::Constructor<B>>,
+        F: Fn(FromA) -> IntoMonadB + RefUnwindSafe,
+    >(
         self,
         f: F,
     ) -> Self::Constructor<B>;
     /// Construct a monad from a value.
-    fn consume(a: A) -> Self;
+    fn consume<IntoA: Into<A>>(a: IntoA) -> Self;
 }
