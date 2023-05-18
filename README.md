@@ -5,7 +5,7 @@ Haskell-style monads with Rust syntax.
 ## Syntax
 
 Rust requires `>>=` to be self-modifying and not to return a value, so `>>=` becomes `>>` and `return` (keyword) becomes `consume`.
-At the moment, `>>` seems unnecessary in an eager language like Rust, but I could easily be convinced otherwise! Please let me know if you'd like it implemented.
+At the moment, Haskell's `>>` seems unnecessary in an eager language like Rust, but I could easily be convinced otherwise! Please let me know if you'd like it implemented.
 
 ## Examples
 
