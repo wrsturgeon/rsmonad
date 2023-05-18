@@ -14,6 +14,15 @@ categories = ["mathematics", "encoding", "no-std", "compilers", "data-structures
 proc-macro = true
 
 [dependencies]
+heck = "*"
 proc-macro2 = ">=1"
 quote = ">=1"
-syn = { version = ">=2", features = ["full"] }
+syn = { version = ">=2", features = ["full", "extra-traits"] }
+
+[dev-dependencies]
+quickcheck = "*"
+rsmonad = { path = ".." }
+
+[features]
+default = ["quickcheck"]
+quickcheck = []

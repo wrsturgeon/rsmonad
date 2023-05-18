@@ -1,12 +1,12 @@
 //! `BlastDoor` monad.
 
-use crate::UnwindMonad;
+use super::UnwindMonad;
 use core::panic::{RefUnwindSafe, UnwindSafe};
 
 /// Encodes the possibility of panicking.
 /// # Use
 /// ```rust
-/// use rsmonad::*;
+/// use rsmonad::prelude::*;
 /// fn afraid_of_circles(x: u8) -> BlastDoor<()> {
 ///     if x == 0 { panic!("aaaaaa!"); }
 ///     Phew(())

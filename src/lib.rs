@@ -1,6 +1,6 @@
 //! Haskell-style monads that support `>>=` out of the box with Rust's `>>`.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)] // TODO: remove `not(test)` after https://github.com/rust-fuzz/arbitrary/pull/74
 #![deny(warnings)]
 #![warn(
     clippy::all,
@@ -22,54 +22,27 @@
 
 extern crate self as rsmonad;
 
-pub use rsmonad_macros::*;
-use same_as::SameAs;
+pub mod prelude {
+    //! In general, always import this with `use rsmonad::prelude::*;`.
+    pub use rsmonad_macros::*;
+
+    pub use super::monad::Monad;
+
+    pub use super::list::*;
+    pub use super::maybe::*;
+
+    #[cfg(feature = "std")]
+    pub use super::with_std::*;
+}
+
+pub mod monad_laws;
 
 mod list;
 mod maybe;
-
-pub use list::*;
-pub use maybe::*;
+mod monad;
 
 #[cfg(feature = "std")]
 mod with_std;
 
-#[cfg(feature = "std")]
-pub use with_std::*;
-
 #[cfg(test)]
 mod test;
-
-/// Original Haskell definition:
-/// ```haskell
-/// class Monad m where
-/// (>>=)  :: m a -> (a -> m b) -> m b
-/// (>>)   :: m a ->       m b  -> m b
-/// return :: a -> m a
-/// ```
-pub trait Monad<A>: SameAs<Self::Constructor<A>> {
-    // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> B> core::ops::Shr<F>`
-    /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
-    type Constructor<B>: Monad<B>;
-    /// Mutate internal state with some function.
-    fn bind<B, F: Fn(A) -> Self::Constructor<B>>(self, f: F) -> Self::Constructor<B>;
-    /// Construct a monad from a value.
-    fn consume(a: A) -> Self;
-}
-
-#[cfg(feature = "std")]
-use core::panic::{RefUnwindSafe, UnwindSafe};
-/// Identical to Monad above but with an inductive guarantee of panic-unwind safety.
-#[cfg(feature = "std")]
-pub trait UnwindMonad<A: UnwindSafe>: SameAs<Self::Constructor<A>> {
-    // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> B> core::ops::Shr<F>`
-    /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
-    type Constructor<B: UnwindSafe>: UnwindMonad<B>;
-    /// Mutate internal state with some function.
-    fn bind<B: UnwindSafe, F: Fn(A) -> Self::Constructor<B> + RefUnwindSafe>(
-        self,
-        f: F,
-    ) -> Self::Constructor<B>;
-    /// Construct a monad from a value.
-    fn consume(a: A) -> Self;
-}

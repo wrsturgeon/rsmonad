@@ -1,12 +1,12 @@
 //! `Maybe` monad.
 
-use crate::monad;
+use crate::prelude::*;
 
 monad! {
     /// Encodes the possibility of failure.
     /// # Use
     /// ```rust
-    /// use rsmonad::*;
+    /// use rsmonad::prelude::*;
     /// fn successor(x: u8) -> Maybe<u8> {
     ///     x.checked_add(1).map_or(Nothing, Just)
     /// }
@@ -23,7 +23,7 @@ monad! {
     ///     Nothing,
     /// );
     /// ```
-    pub enum Maybe {
+    pub enum Maybe<A> {
         /// No value. Invoking `>>` will immediately return `Nothing` as well.
         #[default]
         Nothing,
@@ -38,7 +38,7 @@ monad! {
         }
     }
 
-    fn consume(a) -> Self {
+    fn consume(a) {
         Just(a)
     }
 }
