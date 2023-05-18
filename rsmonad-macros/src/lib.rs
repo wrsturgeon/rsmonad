@@ -44,12 +44,34 @@
 //! # }
 //! ```
 
-#![allow(unreachable_code)] // TODO: REMOVE
+#![deny(warnings)]
+#![warn(
+    clippy::all,
+    clippy::missing_docs_in_private_items,
+    clippy::nursery,
+    clippy::pedantic,
+    clippy::restriction,
+    clippy::cargo,
+    missing_docs,
+    rustdoc::all
+)]
+#![allow(
+    clippy::blanket_clippy_restriction_lints,
+    clippy::implicit_return,
+    clippy::pattern_type_mismatch,
+    clippy::question_mark_used,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated,
+    clippy::string_add,
+    clippy::unreachable,
+    clippy::wildcard_enum_match_arm
+)]
 
 use proc_macro2::{Delimiter, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
 
+/// Write the boilerplate for a monad given the minimal definition.
 #[proc_macro]
 pub fn monad(ts: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match transmute(ts.into()) {
@@ -59,18 +81,21 @@ pub fn monad(ts: proc_macro::TokenStream) -> proc_macro::TokenStream {
     .into()
 }
 
+/// Gets the next character and makes sure it exists.
 macro_rules! next {
     ($tokens:ident, $span:expr, $msg:expr $(,)?) => {
         $tokens.next().ok_or_else(|| syn::Error::new($span, $msg))?
     };
 }
 
+/// Exits immediately with a custom compilation error.
 macro_rules! bail {
     ($span:expr, $msg:expr $(,)?) => {
         return Err(syn::Error::new($span, $msg))
     };
 }
 
+/// Matches very safely against a token tree without making you repeat yourself.
 macro_rules! match_tt {
     ($tokens:ident, $Type:ident, $msg:expr, $prev_span:expr $(,)?) => {
         match next!($tokens, $prev_span, concat!($msg, " after this")) {
@@ -107,6 +132,8 @@ fn skip_attributes(
     }
 }
 
+/// Actually transform the AST, returning an error without boilerplate to be handled above.
+#[allow(clippy::too_many_lines)]
 fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
     let mut out = TokenStream::new();
     let mut tokens = raw_ts.into_iter();
@@ -150,7 +177,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                             maybe_close.span(),
                             "Call Christopher Nolan: this inception is too deep",
                         )
-                    })?
+                    })?;
                 }
                 '>' => {
                     inception = inception.wrapping_sub(1);
@@ -411,7 +438,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                                     .params
                                     .iter()
                                     .map(move |gp| {
-                                        let syn::GenericParam::Type(gpt) = gp else { panic!(); };
+                                        let syn::GenericParam::Type(gpt) = gp else { unreachable!(); };
                                         syn::GenericArgument::Type(syn::Type::Path(syn::TypePath {
                                             qself: None,
                                             path: syn::Path {
@@ -460,7 +487,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                                     .params
                                     .iter()
                                     .map(move |gp| {
-                                        let syn::GenericParam::Type(gpt) = gp else { panic!(); };
+                                        let syn::GenericParam::Type(gpt) = gp else { unreachable!(); };
                                         syn::GenericArgument::Type(syn::Type::Path(syn::TypePath {
                                             qself: None,
                                             path: syn::Path {
@@ -796,6 +823,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
     Ok(out)
 }
 
+/// Attribute deriving common traits.
 fn derives() -> syn::Result<syn::Attribute> {
     let ml: syn::MetaList = syn::parse2(
         quote! {derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)},
@@ -818,6 +846,7 @@ fn derives() -> syn::Result<syn::Attribute> {
     })
 }
 
+/// Attribute allowing exhaustive enums and structs.
 fn exhaustion() -> syn::Result<syn::Attribute> {
     let ml: syn::MetaList = syn::parse2(
         quote! { allow(clippy::non_exhaustive_enums, clippy::non_exhaustive_structs) },
@@ -840,6 +869,7 @@ fn exhaustion() -> syn::Result<syn::Attribute> {
     })
 }
 
+/// Parse an enum.
 fn from_enum(
     out: &mut TokenStream,
     mut item: syn::ItemEnum,
@@ -868,6 +898,7 @@ fn from_enum(
     Ok((item.ident, item.generics))
 }
 
+/// Parse a struct.
 fn from_struct(
     out: &mut TokenStream,
     mut item: syn::ItemStruct,

@@ -14,13 +14,13 @@ categories = ["mathematics", "encoding", "no-std", "compilers", "data-structures
 proc-macro = true
 
 [dependencies]
-heck = "*"
+heck = ">=0.4.1"
 proc-macro2 = ">=1"
 quote = ">=1"
 syn = { version = ">=2", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
-quickcheck = "*"
+quickcheck = "1.0.3"
 rsmonad = { path = ".." }
 
 [features]
