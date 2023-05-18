@@ -171,7 +171,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
         data_structure.span()
     );
     def_block.to_tokens(&mut data_structure);
-    let tuple_struct: bool = if def_block.delimiter() == Delimiter::Parenthesis {
+    let _tuple_struct: bool = if def_block.delimiter() == Delimiter::Parenthesis {
         let semicolon = match_tt!(
             tokens,
             Punct,
@@ -297,7 +297,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
         };
         let mut gpt = gpt.clone();
         gpt.ident = syn::Ident::new("B", Span::call_site());
-        syn::GenericParam::Type(gpt.clone())
+        syn::GenericParam::Type(gpt)
     });
 
     bind.sig
@@ -721,6 +721,8 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
             def.block.stmts.push(syn::Stmt::Expr(
                 {
                     // TODO: IMPLEMENT
+                    syn::parse2(quote! { Default::default() })?
+                    /*
                     if structure == "struct" {
                         if tuple_struct {
                             syn::parse2(quote! { Default::default() })?
@@ -732,6 +734,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                     } else {
                         bail!(structure.span(), "Not a `struct` or an `enum`")
                     }
+                    */
                 },
                 None,
             ));
@@ -815,11 +818,34 @@ fn derives() -> syn::Result<syn::Attribute> {
     })
 }
 
+fn exhaustion() -> syn::Result<syn::Attribute> {
+    let ml: syn::MetaList = syn::parse2(
+        quote! { allow(clippy::non_exhaustive_enums, clippy::non_exhaustive_structs) },
+    )
+    .map_err(move |e| {
+        syn::Error::new(
+            e.span(),
+            "rsmonad-internal error: couldn't parse #[allow(...)]. Please file an error--we want to fix what went wrong!",
+        )
+    })?;
+    Ok(syn::Attribute {
+        pound_token: syn::token::Pound {
+            spans: [Span::call_site()],
+        },
+        style: syn::AttrStyle::Outer,
+        bracket_token: syn::token::Bracket {
+            span: *ml.delimiter.span(),
+        },
+        meta: syn::Meta::List(ml),
+    })
+}
+
 fn from_enum(
     out: &mut TokenStream,
     mut item: syn::ItemEnum,
     publicity: Option<proc_macro2::Ident>,
 ) -> syn::Result<(syn::Ident, syn::Generics)> {
+    item.attrs.push(exhaustion()?);
     item.attrs.push(derives()?);
     item.to_tokens(out);
     if let Some(p) = publicity {
@@ -846,6 +872,7 @@ fn from_struct(
     out: &mut TokenStream,
     mut item: syn::ItemStruct,
 ) -> syn::Result<(syn::Ident, syn::Generics)> {
+    item.attrs.push(exhaustion()?);
     item.attrs.push(derives()?);
     item.to_tokens(out);
     Ok((item.ident, item.generics))

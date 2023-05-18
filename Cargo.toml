@@ -11,8 +11,8 @@ keywords = ["types", "proofs", "math", "logic", "metaprogramming"]
 categories = ["mathematics", "encoding", "no-std", "compilers", "data-structures"]
 
 [dependencies]
-ahash = "*"
-quickcheck = "*"
+ahash = ">=0.8.3"
+quickcheck = ">=1.0.3"
 same-as = ">=1"
 rsmonad-macros = { path = "rsmonad-macros" }
 

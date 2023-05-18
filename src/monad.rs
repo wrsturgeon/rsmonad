@@ -19,3 +19,25 @@ pub trait Monad<A>: SameAs<Self::M<A>> {
     /// Construct a monad from a value.
     fn consume(a: A) -> Self::M<A>;
 }
+
+/// Flatten a nested monad into its enclosing monad.
+/// # Use
+/// ```rust
+/// use rsmonad::prelude::*;
+/// let li = List::consume(List::consume(0_u8)); // List<List<u8>>
+/// let joined = join(li);                       // -->  List<u8>!
+/// assert_eq!(joined, List::consume(0_u8));
+/// ```
+/// Trippy Haskell signature when defined in terms of `id`:
+/// ```haskell
+/// join :: m (m a) -> m a
+/// join mma = mma >>= id
+/// -- >>= :: m a -> (a -> m b) -> m b
+/// -- above, a => (m a) and b => a
+/// -- so >>= :: m (m a) -> (m a -> m a) -> m a
+/// -- and the middle argument is clearly id
+/// ```
+#[inline]
+pub fn join<M1: Monad<M2, M<A> = M2>, M2: Monad<A>, A>(mma: M1) -> M2 {
+    mma.bind::<A, _>(core::convert::identity)
+}

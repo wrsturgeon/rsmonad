@@ -14,10 +14,13 @@
 )]
 #![allow(
     clippy::blanket_clippy_restriction_lints,
+    clippy::exhaustive_enums,
+    clippy::exhaustive_structs,
     clippy::implicit_return,
     clippy::inline_always,
     clippy::mod_module_files,
-    clippy::pub_use
+    clippy::pub_use,
+    clippy::separated_literal_suffix
 )]
 
 extern crate self as rsmonad;
@@ -26,7 +29,7 @@ pub mod prelude {
     //! In general, always import this with `use rsmonad::prelude::*;`.
     pub use rsmonad_macros::*;
 
-    pub use super::monad::Monad;
+    pub use super::monad::*;
 
     pub use super::list::*;
     pub use super::maybe::*;
