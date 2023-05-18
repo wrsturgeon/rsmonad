@@ -14,7 +14,7 @@ categories = ["mathematics", "encoding", "no-std", "compilers", "data-structures
 ahash = ">=0.8.3"
 quickcheck = ">=1.0.3"
 same-as = ">=1"
-rsmonad-macros = { path = "rsmonad-macros" }
+rsmonad-macros = ">=0.1.0"
 
 [features]
 default = []
