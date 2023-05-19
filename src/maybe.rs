@@ -8,7 +8,7 @@ monad! {
     /// ```rust
     /// use rsmonad::prelude::*;
     /// fn successor(x: u8) -> Maybe<u8> {
-    ///     x.checked_add(1).map_or(Nothing, Just)
+    ///     x.checked_add(1).into()
     /// }
     /// assert_eq!(
     ///     Just(3_u8) >> successor,
@@ -41,6 +41,23 @@ monad! {
 
     fn consume(a) {
         Just(a)
+    }
+}
+
+impl<A> From<Maybe<A>> for Option<A> {
+    #[inline(always)]
+    fn from(value: Maybe<A>) -> Self {
+        match value {
+            Just(a) => Some(a),
+            Nothing => None,
+        }
+    }
+}
+
+impl<A> From<Option<A>> for Maybe<A> {
+    #[inline(always)]
+    fn from(value: Option<A>) -> Self {
+        value.map_or(Nothing, Just)
     }
 }
 

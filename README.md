@@ -1,35 +1,52 @@
-# Monads in Rust
+# Monads, Functors, & More to Come in Rust
 
 Haskell-style monads with Rust syntax.
 
 ## Syntax
 
-Rust requires `>>=` to be self-modifying and not to return a value, so `>>=` becomes `>>` and `return` (keyword) becomes `consume`.
-At the moment, Haskell's `>>` seems unnecessary in an eager language like Rust, but I could easily be convinced otherwise! Please let me know if you'd like it implemented.
+Rust requires `>>=` to be self-modifying, so we use `>>` instead of `>>=` and `consume` instead of `return` (keyword).
+For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x | f | g | ...`.
+At the moment, Haskell's monadic `>>` seems unnecessary in an eager language like Rust, but I could easily be overlooking something!
+
+## Use
+
+Just write a `monad! { ...` and you get all its superclasses like `Functor` for free, plus common derives like `Debug`, `Clone`, `Eq`, `Ord`, `Hash`, etc., and `enum`s have all their members `pub use`d:
+```rust
+use rsmonad::prelude::*;
+
+monad! {
+    enum Maybe<A> {
+        Just(A),
+        Nothing,
+    }
+
+    fn bind(self, f) {
+        match self {
+            Just(a) => f(a),
+            Nothing => Nothing,
+        }
+    }
+
+    fn consume(a) {
+        Just(a)
+    }
+}
+
+// And these just work:
+
+// Monad
+assert_eq(Just(4) >> |x| u8::checked_add(x, 1).into(), Just(5));
+assert_eq(Nothing >> |x| u8::checked_add(x, 1).into(), Nothing);
+assert_eq(Just(255) >> |x| u8::checked_add(x, 1).into(), Nothing);
+
+// Functor
+assert_eq!(Just(4) | u8::is_power_of_two, Just(true));
+assert_eq!(Nothing | u8::is_power_of_two, Nothing);
+```
 
 ## Examples
 
-This typechecks, compiles, and runs without a hitch:
-```rust
-use rsmonad::prelude::*;
-fn successor(x: u8) -> Maybe<u8> {
-    x.checked_add(1).map_or(Nothing, Just)
-}
-assert_eq!(
-    Just(3) >> successor,
-    Just(4),
-);
-assert_eq!(
-    Nothing >> successor,
-    Nothing,
-);
-assert_eq!(
-    Just(255) >> successor,
-    Nothing,
-);
-```
-
-This as well, if you choose to enable the non-`no-std` bits:
+Catch `panic`s without worrying about the details:
 ```rust
 fn afraid_of_circles(x: u8) -> BlastDoor<()> {
     if x == 0 { panic!("aaaaaa!"); }
@@ -64,11 +81,12 @@ assert_eq!(
 And even the notoriously tricky `join`-in-terms-of-`bind` with no type annotations necessary:
 ```rust
 let li = List::consume(List::consume(0_u8)); // List<List<u8>>
-let joined = join(li);                       // -->  List<u8>!
+let joined = li.join();                      // -->  List<u8>!
 assert_eq!(joined, List::consume(0_u8));
 ```
 
-Plus, we automatically derive `QuickCheck::Arbitrary` and property-test the monad laws, inextricable from defining a Monad in the first place.
+Plus, we automatically derive `QuickCheck::Arbitrary` and property-test the monad and functor laws.
+Just run `cargo test` and they'll run alongside all your other tests.
 
 ## Sharp edges
 

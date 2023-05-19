@@ -2,6 +2,8 @@
 
 use same_as::SameAs;
 
+use crate::prelude::Functor;
+
 /// Original Haskell definition:
 /// ```haskell
 /// class Monad m where
@@ -9,27 +11,35 @@ use same_as::SameAs;
 /// (>>)   :: m a ->       m b  -> m b
 /// return :: a -> m a
 /// ```
-pub trait Monad<A>: SameAs<Self::Hkt<A>> {
-    // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> B> core::ops::Shr<F>`
+pub trait Monad<A>: SameAs<Self::Monad<A>> + Functor<A> {
+    // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> MB> core::ops::Shr<F>`
 
-    /// In this `impl`, `Self` is really `Self<A>`, but we want to be able to make `Self<B>`.
-    type Hkt<B>: Monad<B>;
+    /// Fucking pain in the ass redundancy. This has to be in this trait to avoid potential spooky action at a distance e.g. by redefining a separate Hkt later.
+    type Monad<B>: Monad<B>;
     /// Mutate internal state with some function.
-    fn bind<B, F: Fn(A) -> Self::Hkt<B>>(self, f: F) -> Self::Hkt<B>;
+    fn bind<B, F: Fn(A) -> Self::Monad<B>>(self, f: F) -> Self::Monad<B>;
     /// Construct a monad from a value.
     fn consume(a: A) -> Self;
+    /// Flatten a nested monad into a single-layer monad.
+    #[inline(always)]
+    fn join<Flat, MFlat: Monad<Flat, Monad<MFlat> = Self>>(self) -> MFlat
+    where
+        Self: Sized + Monad<MFlat, Monad<Flat> = MFlat>,
+    {
+        self.bind::<Flat, _>(core::convert::identity::<MFlat>)
+    }
 }
 
 /// Mutate internal state with some function.
 #[inline(always)]
-pub fn bind<A, B, M: Monad<A>, F: Fn(A) -> M::Hkt<B>>(m: M, f: F) -> M::Hkt<B> {
-    m.bind(f)
+pub fn bind<A, B, MA: Monad<A>, F: Fn(A) -> MA::Monad<B>>(ma: MA, f: F) -> MA::Monad<B> {
+    ma.bind(f)
 }
 
 /// Construct a monad from a value.
 #[inline(always)]
-pub fn consume<A, M: Monad<A, Hkt<A> = M>>(a: A) -> M {
-    M::consume(a)
+pub fn consume<A, MA: Monad<A>>(a: A) -> MA {
+    MA::consume(a)
 }
 
 /// Flatten a nested monad into its enclosing monad.
@@ -38,6 +48,13 @@ pub fn consume<A, M: Monad<A, Hkt<A> = M>>(a: A) -> M {
 /// use rsmonad::prelude::*;
 /// let li = List::consume(List::consume(0_u8)); // List<List<u8>>
 /// let joined = join(li);                       // -->  List<u8>!
+/// assert_eq!(joined, List::consume(0_u8));
+/// ```
+/// Or via the `Monad` method:
+/// ```rust
+/// # use rsmonad::prelude::*;
+/// let li = List::consume(List::consume(0_u8));
+/// let joined = li.join();
 /// assert_eq!(joined, List::consume(0_u8));
 /// ```
 /// Trippy Haskell signature when defined in terms of `id`:
@@ -50,6 +67,6 @@ pub fn consume<A, M: Monad<A, Hkt<A> = M>>(a: A) -> M {
 /// -- and the middle argument is clearly id
 /// ```
 #[inline(always)]
-pub fn join<M1: Monad<M2, Hkt<A> = M2>, M2: Monad<A, Hkt<A> = M2>, A>(mma: M1) -> M2 {
-    mma.bind::<A, _>(core::convert::identity)
+pub fn join<MMA: Monad<MA, Monad<A> = MA>, MA: Monad<A, Monad<MA> = MMA>, A>(mma: MMA) -> MA {
+    mma.join()
 }

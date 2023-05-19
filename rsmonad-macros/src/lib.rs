@@ -6,39 +6,39 @@
 //!
 //! monad! {
 //!     /// Encodes the possibility of failure.
-//!     enum Maybe<A> {
-//!         Nothing,
-//!         Just(A),
+//!     enum ExampleMaybe<A> {
+//!         EgNothing,
+//!         EgJust(A),
 //!     }
 //!
 //!     fn bind(self, f) {
 //!         match self {
-//!             Nothing => Nothing,
-//!             Just(b) => f(b),
+//!             EgNothing => EgNothing,
+//!             EgJust(b) => f(b),
 //!         }
 //!     }
 //!
 //!     fn consume(a) {
-//!         Just(a)
+//!         EgJust(a)
 //!     }
 //! }
 //!
-//! fn could_overflow(x: u8) -> Maybe<u8> {
-//!     x.checked_add(1).map_or(Nothing, Just)
+//! fn could_overflow(x: u8) -> ExampleMaybe<u8> {
+//!     x.checked_add(1).map_or(EgNothing, EgJust)
 //! }
 //!
 //! # fn main() {
 //! assert_eq!(
-//!     Nothing >> could_overflow,
-//!     Nothing
+//!     EgNothing >> could_overflow,
+//!     EgNothing
 //! );
 //! assert_eq!(
-//!     Just(1) >> could_overflow,
-//!     Just(2)
+//!     EgJust(1) >> could_overflow,
+//!     EgJust(2)
 //! );
 //! assert_eq!(
-//!     Just(255) >> could_overflow,
-//!     Nothing
+//!     EgJust(255) >> could_overflow,
+//!     EgNothing
 //! );
 //! # }
 //! ```
@@ -93,7 +93,7 @@ macro_rules! bail {
     };
 }
 
-/// Matches very safely against a token tree without making you repeat yourself.
+/// Matches very safely against a token tree without forcing you to repeat yourself.
 macro_rules! match_tt {
     ($tokens:ident, $Type:ident, $msg:expr, $prev_span:expr $(,)?) => {
         match next!($tokens, $prev_span, concat!($msg, " after this")) {
@@ -156,8 +156,6 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
     }
     let name = match_tt!(tokens, Ident, "Expected a name", Span::call_site());
     name.to_tokens(&mut data_structure);
-
-    // Parse generics
     let generic_open = match_tt!(tokens, Punct, "Expected generics, e.g. `<A>`", name.span());
     if generic_open.as_char() != '<' {
         bail!(generic_open.span(), "Expected generics, e.g. `<A>`");
@@ -238,478 +236,19 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
         bail!(structure.span(), "Expected either `struct` or `enum`");
     };
 
-    // Parse `bind`
-    let mut bind = TokenStream::new();
-    let t_fn = match_tt!(tokens, Ident, "Expected `fn`", def_block.span());
-    if t_fn != "fn" {
-        bail!(t_fn.span(), "Expected `fn`",);
-    }
-    t_fn.to_tokens(&mut bind);
-    let t_bind = match_tt!(tokens, Ident, "Expected `bind`", t_fn.span());
-    if t_bind != "bind" {
-        bail!(t_bind.span(), "Expected `bind`")
-    }
-    t_bind.to_tokens(&mut bind);
-    let args = match_tt!(
-        tokens,
-        Group,
-        "Expected arguments immediately after `bind` (no need to repeat the <A: ...> bound)",
-        t_bind.span(),
-    );
-    if args.delimiter() != Delimiter::Parenthesis {
-        bail!(args.span(), "Expected arguments immediately after `bind`");
-    }
-    let args = proc_macro2::Group::new(Delimiter::Parenthesis, {
-        let mut args_ts = TokenStream::new();
-        let mut bare = args.stream().into_iter();
-        let t_self = match skip_attributes(&mut args_ts, &mut bare)? {
-            TokenTree::Ident(i) => i,
-            tt => bail!(tt.span(), "Expected `self`"),
-        };
-        if t_self != "self" {
-            bail!(t_self.span(), "Expected `self`");
-        }
-        t_self.to_tokens(&mut args_ts);
-        let comma = match_tt!(bare, Punct, "Expected a comma", t_self.span());
-        if comma.as_char() != ',' {
-            bail!(comma.span(), "Expected a comma");
-        }
-        comma.to_tokens(&mut args_ts);
-        let f = match skip_attributes(&mut args_ts, &mut bare)? {
-            TokenTree::Ident(i) => i,
-            tt => bail!(tt.span(), "Expected `f`"),
-        };
-        f.to_tokens(&mut args_ts);
-        proc_macro2::Punct::new(':', proc_macro2::Spacing::Alone).to_tokens(&mut args_ts);
-        proc_macro2::Ident::new("F", Span::call_site()).to_tokens(&mut args_ts);
-        args_ts
-    });
-    args.to_tokens(&mut bind);
-    let def_block = match_tt!(
-        tokens,
-        Group,
-        "Expected a function definition block (please don't try to specify return type; it's extremely long and will change as Rust evolves)",
-        args.span(),
-    );
-    if def_block.delimiter() != Delimiter::Brace {
-        bail!(def_block.span(), "Expected a function definition block");
-    }
-    def_block.to_tokens(&mut bind);
-    let mut bind: syn::ImplItemFn = syn::parse2(bind)?;
-    let inline_always: syn::MetaList = syn::parse2(quote! { inline(always) })?;
-    bind.attrs.push(syn::Attribute {
-        pound_token: syn::token::Pound {
-            spans: [Span::call_site()],
-        },
-        style: syn::AttrStyle::Outer,
-        bracket_token: syn::token::Bracket {
-            span: *inline_always.delimiter.span(),
-        },
-        meta: syn::Meta::List(inline_always.clone()),
-    });
-    bind.sig.generics.lt_token = Some(syn::token::Lt {
-        spans: [Span::call_site()],
-    });
-    bind.sig.generics.gt_token = Some(syn::token::Gt {
-        spans: [Span::call_site()],
-    });
-    bind.sig.generics.params.push_value({
-        let Some(syn::GenericParam::Type(gpt)) = generics.params.first() else {
-            bail!(generics.span(), "Expected at least one generic argument");
-        };
-        let mut gpt = gpt.clone();
-        gpt.ident = syn::Ident::new("B", Span::call_site());
-        syn::GenericParam::Type(gpt)
-    });
+    let bind = parse_bind(&mut tokens, &def_block, &generics)?;
+    let consume = parse_consume(&mut tokens, &def_block)?;
+    impl_mod(&ident, bind, consume)?.to_tokens(&mut out);
 
-    bind.sig
-        .generics
-        .params
-        .push(syn::GenericParam::Type(syn::parse2(
-            quote! { F: Fn(A) -> Self::Hkt<B> },
-        )?));
-    bind.sig.output = syn::ReturnType::Type(
-        syn::token::RArrow {
-            spans: [Span::call_site(), Span::call_site()],
-        },
-        Box::new(syn::Type::Path(syn::parse2(quote! { Self::Hkt<B> })?)),
-    );
+    write_arbitrary_impl(ident, fields)?.to_tokens(&mut out);
 
-    // Parse `consume`
-    let mut consume = TokenStream::new();
-    let t_fn = match_tt!(tokens, Ident, "Expected `fn`", def_block.span(),);
-    if t_fn != "fn" {
-        bail!(t_fn.span(), "Expected `fn`",);
-    }
-    t_fn.to_tokens(&mut consume);
-    let t_consume = match_tt!(tokens, Ident, "Expected `consume`", t_fn.span());
-    if t_consume != "consume" {
-        bail!(t_bind.span(), "Expected `consume`")
-    }
-    t_consume.to_tokens(&mut consume);
-    let args = match_tt!(
-        tokens,
-        Group,
-        "Expected arguments immediately after `consume` (no need to repeat the <A: ...> bound)",
-        t_bind.span(),
-    );
-    if args.delimiter() != Delimiter::Parenthesis {
-        bail!(
-            args.span(),
-            "Expected arguments immediately after `consume`"
-        );
-    }
-    let args = proc_macro2::Group::new(Delimiter::Parenthesis, {
-        let mut args_ts = TokenStream::new();
-        let mut bare = args.stream().into_iter();
-        let a = match skip_attributes(&mut args_ts, &mut bare)? {
-            TokenTree::Ident(i) => i,
-            tt => bail!(tt.span(), "Expected `a`"),
-        };
-        a.to_tokens(&mut args_ts);
-        proc_macro2::Punct::new(':', proc_macro2::Spacing::Alone).to_tokens(&mut args_ts);
-        proc_macro2::Ident::new("A", Span::call_site()).to_tokens(&mut args_ts);
-        args_ts
-    });
-    args.to_tokens(&mut consume);
-    let def_block = match_tt!(
-        tokens,
-        Group,
-        "Expected a function definition block (please don't try to specify return type; it's extremely long and will change as Rust evolves)",
-        args.span(),
-    );
-    if def_block.delimiter() != Delimiter::Brace {
-        bail!(def_block.span(), "Expected a function definition block");
-    }
-    def_block.to_tokens(&mut consume);
-    let mut consume: syn::ImplItemFn = syn::parse2(consume)?;
-    consume.attrs.push(syn::Attribute {
-        pound_token: syn::token::Pound {
-            spans: [Span::call_site()],
-        },
-        style: syn::AttrStyle::Outer,
-        bracket_token: syn::token::Bracket {
-            span: *inline_always.delimiter.span(),
-        },
-        meta: syn::Meta::List(inline_always),
-    });
-    consume.sig.generics.lt_token = Some(syn::token::Lt {
-        spans: [Span::call_site()],
-    });
-    consume.sig.generics.gt_token = Some(syn::token::Gt {
-        spans: [Span::call_site()],
-    });
-    consume.sig.output = syn::ReturnType::Type(
-        syn::token::RArrow {
-            spans: [Span::call_site(), Span::call_site()],
-        },
-        Box::new(syn::Type::Path(syn::parse2(quote! { Self })?)),
-    );
+    Ok(out)
+}
 
-    // Make an `impl... Monad`
-    syn::ItemImpl {
-        attrs: vec![],
-        defaultness: None,
-        unsafety: None,
-        impl_token: syn::token::Impl {
-            span: Span::call_site(),
-        },
-        generics: generics.clone(),
-        trait_: Some((
-            None,
-            syn::Path {
-                leading_colon: None,
-                segments: {
-                    let mut p = syn::punctuated::Punctuated::new();
-                    p.push_value(syn::PathSegment {
-                        ident: syn::Ident::new("Monad", Span::call_site()),
-                        arguments: syn::PathArguments::AngleBracketed(
-                            syn::AngleBracketedGenericArguments {
-                                colon2_token: None,
-                                lt_token: syn::token::Lt {
-                                    spans: [Span::call_site()],
-                                },
-                                args: generics
-                                    .params
-                                    .iter()
-                                    .map(move |gp| {
-                                        let syn::GenericParam::Type(gpt) = gp else {
-                                            // SAFETY:
-                                            // Checked earlier in the function. Not mutable.
-                                            unsafe { core::hint::unreachable_unchecked() }
-                                        };
-                                        syn::GenericArgument::Type(syn::Type::Path(syn::TypePath {
-                                            qself: None,
-                                            path: syn::Path {
-                                                leading_colon: None,
-                                                segments: {
-                                                    let mut punc =
-                                                        syn::punctuated::Punctuated::new();
-                                                    punc.push_value(syn::PathSegment {
-                                                        ident: gpt.ident.clone(),
-                                                        arguments: syn::PathArguments::None,
-                                                    });
-                                                    punc
-                                                },
-                                            },
-                                        }))
-                                    })
-                                    .collect(),
-                                gt_token: syn::token::Gt {
-                                    spans: [Span::call_site()],
-                                },
-                            },
-                        ),
-                    });
-                    p
-                },
-            },
-            syn::token::For {
-                span: Span::call_site(),
-            },
-        )),
-        self_ty: Box::new(syn::Type::Path(syn::TypePath {
-            qself: None,
-            path: syn::Path {
-                leading_colon: None,
-                segments: {
-                    let mut p = syn::punctuated::Punctuated::new();
-                    p.push_value(syn::PathSegment {
-                        ident: ident.clone(),
-                        arguments: syn::PathArguments::AngleBracketed(
-                            syn::AngleBracketedGenericArguments {
-                                colon2_token: None,
-                                lt_token: syn::token::Lt {
-                                    spans: [Span::call_site()],
-                                },
-                                args: generics
-                                    .params
-                                    .iter()
-                                    .map(move |gp| {
-                                        let syn::GenericParam::Type(gpt) = gp else {
-                                            // SAFETY:
-                                            // Checked earlier in the function. Not mutable.
-                                            unsafe { core::hint::unreachable_unchecked() }
-                                        };
-                                        syn::GenericArgument::Type(syn::Type::Path(syn::TypePath {
-                                            qself: None,
-                                            path: syn::Path {
-                                                leading_colon: None,
-                                                segments: {
-                                                    let mut punc =
-                                                        syn::punctuated::Punctuated::new();
-                                                    punc.push_value(syn::PathSegment {
-                                                        ident: gpt.ident.clone(),
-                                                        arguments: syn::PathArguments::None,
-                                                    });
-                                                    punc
-                                                },
-                                            },
-                                        }))
-                                    })
-                                    .collect(),
-                                gt_token: syn::token::Gt {
-                                    spans: [Span::call_site()],
-                                },
-                            },
-                        ),
-                    });
-                    p
-                },
-            },
-        })),
-        brace_token: syn::token::Brace {
-            span: proc_macro2::Group::new(Delimiter::Brace, TokenStream::new()).delim_span(),
-        },
-        items: vec![
-            syn::ImplItem::Type(syn::ImplItemType {
-                attrs: vec![],
-                vis: syn::Visibility::Inherited,
-                defaultness: None,
-                type_token: syn::token::Type {
-                    span: Span::call_site(),
-                },
-                ident: syn::Ident::new("Hkt", Span::call_site()),
-                generics: {
-                    let mut g = generics.clone();
-                    let Some(syn::GenericParam::Type(gpt)) = g.params.first_mut() else {
-                        bail!(g.span(), "Expected at least one generic argument");
-                    };
-                    gpt.ident = syn::Ident::new("B", Span::call_site());
-                    g
-                },
-                /*
-                syn::Generics {
-                    lt_token: Some(syn::token::Lt {
-                        spans: [Span::call_site()],
-                    }),
-                    params: {
-                        let mut p = syn::punctuated::Punctuated::new();
-                        p.push_value(syn::GenericParam::Type(syn::TypeParam {
-                            attrs: vec![],
-                            ident: syn::Ident::new("B", Span::call_site()),
-                            colon_token: None,
-                            bounds: syn::punctuated::Punctuated::new(),
-                            eq_token: None,
-                            default: None,
-                        }));
-                        p
-                    },
-                    gt_token: Some(syn::token::Gt {
-                        spans: [Span::call_site()],
-                    }),
-                    where_clause: None,
-                },
-                */
-                eq_token: syn::token::Eq {
-                    spans: [Span::call_site()],
-                },
-                ty: syn::Type::Path(syn::TypePath {
-                    qself: None,
-                    path: syn::Path {
-                        leading_colon: None,
-                        segments: {
-                            let mut p = syn::punctuated::Punctuated::new();
-                            p.push_value(syn::PathSegment {
-                                ident: ident.clone(),
-                                arguments: syn::PathArguments::AngleBracketed(
-                                    syn::AngleBracketedGenericArguments {
-                                        colon2_token: None,
-                                        lt_token: syn::token::Lt {
-                                            spans: [Span::call_site()],
-                                        },
-                                        args: {
-                                            let mut p = syn::punctuated::Punctuated::new();
-                                            p.push_value(syn::GenericArgument::Type(
-                                                syn::Type::Path(syn::TypePath {
-                                                    qself: None,
-                                                    path: syn::Path {
-                                                        leading_colon: None,
-                                                        segments: {
-                                                            let mut b =
-                                                                syn::punctuated::Punctuated::new();
-                                                            b.push_value(syn::PathSegment {
-                                                                ident: syn::Ident::new(
-                                                                    "B",
-                                                                    Span::call_site(),
-                                                                ),
-                                                                arguments: syn::PathArguments::None,
-                                                            });
-                                                            b
-                                                        },
-                                                    },
-                                                }),
-                                            ));
-                                            p
-                                        },
-                                        gt_token: syn::token::Gt {
-                                            spans: [Span::call_site()],
-                                        },
-                                    },
-                                ),
-                            });
-                            p
-                        },
-                    },
-                }),
-                semi_token: syn::token::Semi {
-                    spans: [Span::call_site()],
-                },
-            }),
-            syn::ImplItem::Fn(bind),
-            syn::ImplItem::Fn(consume),
-        ],
-    }
-    .to_tokens(&mut out);
-
-    syn::ItemImpl {
-        attrs: vec![],
-        defaultness: None,
-        unsafety: None,
-        impl_token: syn::token::Impl {
-            span: Span::call_site(),
-        },
-        generics: {
-            let mut g: syn::Generics =
-                syn::parse2(quote! { <> })?;
-            g.params.push_value({
-                let Some(syn::GenericParam::Type(gpt)) = generics.params.first() else {
-                    bail!(generics.span(), "Expected at least one generic argument");
-                };
-                syn::GenericParam::Type(gpt.clone())
-            });
-            g.params.push({
-                let Some(syn::GenericParam::Type(gpt)) = generics.params.first() else {
-                    bail!(generics.span(), "Expected at least one generic argument");
-                };
-                let mut gpt = gpt.clone();
-                gpt.ident = syn::Ident::new("B", Span::call_site());
-                syn::GenericParam::Type(gpt)
-            });
-
-            let mut fn_trait: syn::TypeParam = syn::parse2(quote! { F: Fn(A) -> FixItInPost })?;
-            match fn_trait.bounds.last_mut().ok_or_else(|| {
-                syn::Error::new(
-                    Span::call_site(),
-                    "rsmonad-internal error: expected generic arguments",
-                )
-            })? {
-                syn::TypeParamBound::Trait(t) => {
-                    match &mut t
-                        .path
-                        .segments
-                        .last_mut()
-                        .ok_or_else(|| {
-                            syn::Error::new(
-                            Span::call_site(),
-                            "rsmonad-internal error: zero-length path in final type parameter",
-                        )
-                        })?
-                        .arguments
-                    {
-                        syn::PathArguments::Parenthesized(p) => p.output = syn::ReturnType::Type(syn::parse2(quote! { -> })?, Box::new(syn::Type::Path(syn::TypePath { qself: None, path: syn::Path { leading_colon: None, segments: {
-                            let mut rtype = syn::punctuated::Punctuated::new();
-                            rtype.push_value(syn::PathSegment { ident: ident.clone(), arguments: syn::PathArguments::AngleBracketed(syn::parse2(quote! { <B> })?) });
-                            rtype
-                        } } }))),
-                        _ => bail!(Span::call_site(),"rsmonad-internal error: Expected parenthesized arguments in a `Fn` trait"),
-                    }
-                }
-                tpb => bail!(tpb.span(), "Expected a trait"),
-            }
-            g.params.push(syn::GenericParam::Type(fn_trait));
-            g
-        },
-        trait_: Some((
-            None,
-            syn::parse2(quote! { core::ops::Shr<F> })?,
-            syn::parse2(quote! { for })?,
-        )),
-        self_ty: Box::new(syn::Type::Path(syn::TypePath {
-            qself: None,
-            path: syn::Path {
-                leading_colon: None,
-                segments: {
-                    let mut p = syn::punctuated::Punctuated::new();
-                    p.push_value(syn::PathSegment {
-                        ident: ident.clone(),
-                        arguments: syn::PathArguments::AngleBracketed(syn::parse2(quote! { <A> })?),
-                    });
-                    p
-                },
-            },
-        })),
-        brace_token: syn::token::Brace {
-            span: proc_macro2::Group::new(Delimiter::Brace, TokenStream::new()).delim_span(),
-        },
-        items: vec![
-            syn::ImplItem::Type(syn::parse2(quote! { type Output = <Self as Monad<A>>::Hkt<B>; })?),
-            syn::ImplItem::Fn(syn::parse2(quote! { #[inline(always)] fn shr(self, f: F) -> Self::Output { self.bind(f) } })?),
-        ],
-    }
-    .to_tokens(&mut out);
-
-    syn::ItemImpl {
+/// Write a `quickcheck::Arbitrary` implementation.
+#[allow(clippy::too_many_lines)]
+fn write_arbitrary_impl(ident: syn::Ident, fields: Fields) -> syn::Result<syn::ItemImpl> {
+    Ok(syn::ItemImpl {
         attrs: vec![],
         defaultness: None,
         unsafety: None,
@@ -731,7 +270,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                 segments: {
                     let mut p = syn::punctuated::Punctuated::new();
                     p.push_value(syn::PathSegment {
-                        ident: ident.clone(),
+                        ident,
                         arguments: syn::PathArguments::AngleBracketed(syn::parse2(quote! { <A> })?),
                     });
                     p
@@ -1020,11 +559,248 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
             ));
             def
         })],
-    }
-    .to_tokens(&mut out);
+    })
+}
 
-    #[cfg(feature = "quickcheck")]
-    syn::ItemMod {
+/// Parse the definition of `bind`.
+fn parse_bind(
+    tokens: &mut proc_macro2::token_stream::IntoIter,
+    def_block: &proc_macro2::Group,
+    generics: &syn::Generics,
+) -> syn::Result<syn::ImplItemFn> {
+    // Parse `bind`
+    let mut bind = TokenStream::new();
+    let t_fn = match_tt!(tokens, Ident, "Expected `fn`", def_block.span());
+    if t_fn != "fn" {
+        bail!(t_fn.span(), "Expected `fn`",);
+    }
+    t_fn.to_tokens(&mut bind);
+    let t_bind = match_tt!(tokens, Ident, "Expected `bind`", t_fn.span());
+    if t_bind != "bind" {
+        bail!(t_bind.span(), "Expected `bind`")
+    }
+    t_bind.to_tokens(&mut bind);
+    let args = match_tt!(
+        tokens,
+        Group,
+        "Expected arguments immediately after `bind` (no need to repeat the <A: ...> bound)",
+        t_bind.span(),
+    );
+    if args.delimiter() != Delimiter::Parenthesis {
+        bail!(args.span(), "Expected arguments immediately after `bind`");
+    }
+    let args = proc_macro2::Group::new(Delimiter::Parenthesis, {
+        let mut args_ts = TokenStream::new();
+        let mut bare = args.stream().into_iter();
+        let t_self = match skip_attributes(&mut args_ts, &mut bare)? {
+            TokenTree::Ident(i) => i,
+            tt => bail!(tt.span(), "Expected `self`"),
+        };
+        if t_self != "self" {
+            bail!(t_self.span(), "Expected `self`");
+        }
+        t_self.to_tokens(&mut args_ts);
+        let comma = match_tt!(bare, Punct, "Expected a comma", t_self.span());
+        if comma.as_char() != ',' {
+            bail!(comma.span(), "Expected a comma");
+        }
+        comma.to_tokens(&mut args_ts);
+        let f = match skip_attributes(&mut args_ts, &mut bare)? {
+            TokenTree::Ident(i) => i,
+            tt => bail!(tt.span(), "Expected `f`"),
+        };
+        f.to_tokens(&mut args_ts);
+        proc_macro2::Punct::new(':', proc_macro2::Spacing::Alone).to_tokens(&mut args_ts);
+        proc_macro2::Ident::new("F", Span::call_site()).to_tokens(&mut args_ts);
+        args_ts
+    });
+    args.to_tokens(&mut bind);
+    let def_block = match_tt!(
+        tokens,
+        Group,
+        "Expected a function definition block (please don't try to specify return type; it's extremely long and will change as Rust evolves)",
+        args.span(),
+    );
+    if def_block.delimiter() != Delimiter::Brace {
+        bail!(def_block.span(), "Expected a function definition block");
+    }
+    def_block.to_tokens(&mut bind);
+    let mut bind: syn::ImplItemFn = syn::parse2(bind)?;
+    let inline_always: syn::MetaList = syn::parse2(quote! { inline(always) })?;
+    bind.attrs.push(syn::Attribute {
+        pound_token: syn::token::Pound {
+            spans: [Span::call_site()],
+        },
+        style: syn::AttrStyle::Outer,
+        bracket_token: syn::token::Bracket {
+            span: *inline_always.delimiter.span(),
+        },
+        meta: syn::Meta::List(inline_always.clone()),
+    });
+    bind.sig.generics.lt_token = Some(syn::token::Lt {
+        spans: [Span::call_site()],
+    });
+    bind.sig.generics.gt_token = Some(syn::token::Gt {
+        spans: [Span::call_site()],
+    });
+    bind.sig.generics.params.push_value({
+        let Some(syn::GenericParam::Type(gpt)) = generics.params.first() else {
+            bail!(generics.span(), "Expected at least one generic argument");
+        };
+        let mut gpt = gpt.clone();
+        gpt.ident = syn::Ident::new("B", Span::call_site());
+        syn::GenericParam::Type(gpt)
+    });
+    bind.sig
+        .generics
+        .params
+        .push(syn::GenericParam::Type(syn::parse2(
+            quote! { F: Fn(A) -> M<B> },
+        )?));
+    bind.sig.output = syn::ReturnType::Type(
+        syn::token::RArrow {
+            spans: [Span::call_site(), Span::call_site()],
+        },
+        Box::new(syn::Type::Path(syn::parse2(quote! { M<B> })?)),
+    );
+    Ok(bind)
+}
+
+/// Parse the definition of `consume`.
+fn parse_consume(
+    tokens: &mut proc_macro2::token_stream::IntoIter,
+    def_block: &proc_macro2::Group,
+) -> syn::Result<syn::ImplItemFn> {
+    // Parse `consume`
+    let mut consume = TokenStream::new();
+    let t_fn = match_tt!(tokens, Ident, "Expected `fn`", def_block.span(),);
+    if t_fn != "fn" {
+        bail!(
+            Span::call_site(),
+            "Expected a definition for `consume` after `bind`",
+        );
+    }
+    t_fn.to_tokens(&mut consume);
+    let t_consume = match_tt!(
+        tokens,
+        Ident,
+        "Expected a definition for `consume` after `bind`",
+        Span::call_site()
+    );
+    if t_consume != "consume" {
+        bail!(
+            Span::call_site(),
+            "Expected a definition for `consume` after `bind`"
+        )
+    }
+    t_consume.to_tokens(&mut consume);
+    let args = match_tt!(
+        tokens,
+        Group,
+        "Expected arguments immediately after the function name `consume` (no need to repeat the <A: ...> bound)",
+        Span::call_site(),
+    );
+    if args.delimiter() != Delimiter::Parenthesis {
+        bail!(
+            args.span(),
+            "Expected arguments immediately after `consume`"
+        );
+    }
+    let args = proc_macro2::Group::new(Delimiter::Parenthesis, {
+        let mut args_ts = TokenStream::new();
+        let mut bare = args.stream().into_iter();
+        let a = match skip_attributes(&mut args_ts, &mut bare)? {
+            TokenTree::Ident(i) => i,
+            tt => bail!(tt.span(), "Expected `a`"),
+        };
+        a.to_tokens(&mut args_ts);
+        proc_macro2::Punct::new(':', proc_macro2::Spacing::Alone).to_tokens(&mut args_ts);
+        proc_macro2::Ident::new("A", Span::call_site()).to_tokens(&mut args_ts);
+        args_ts
+    });
+    args.to_tokens(&mut consume);
+    let def_block = match_tt!(
+        tokens,
+        Group,
+        "Expected a function definition block (please don't try to specify return type; it's extremely long and will change as Rust evolves)",
+        args.span(),
+    );
+    if def_block.delimiter() != Delimiter::Brace {
+        bail!(def_block.span(), "Expected a function definition block");
+    }
+    def_block.to_tokens(&mut consume);
+    let mut consume: syn::ImplItemFn = syn::parse2(consume)?;
+    let inline_always: syn::MetaList = syn::parse2(quote! { inline(always) })?;
+    consume.attrs.push(syn::Attribute {
+        pound_token: syn::token::Pound {
+            spans: [Span::call_site()],
+        },
+        style: syn::AttrStyle::Outer,
+        bracket_token: syn::token::Bracket {
+            span: *inline_always.delimiter.span(),
+        },
+        meta: syn::Meta::List(inline_always),
+    });
+    consume.sig.generics.lt_token = Some(syn::token::Lt {
+        spans: [Span::call_site()],
+    });
+    consume.sig.generics.gt_token = Some(syn::token::Gt {
+        spans: [Span::call_site()],
+    });
+    consume.sig.output = syn::ReturnType::Type(
+        syn::token::RArrow {
+            spans: [Span::call_site(), Span::call_site()],
+        },
+        Box::new(syn::Type::Path(syn::parse2(quote! { Self })?)),
+    );
+    Ok(consume)
+}
+
+/// Write a `use` statement so we can refer to the implementee by an alias and use more `quote! { ...`.
+fn use_as_m(ident: &syn::Ident) -> syn::Item {
+    syn::Item::Use(syn::ItemUse {
+        attrs: vec![],
+        vis: syn::Visibility::Inherited,
+        use_token: syn::token::Use {
+            span: Span::call_site(),
+        },
+        leading_colon: None,
+        tree: syn::UseTree::Path(syn::UsePath {
+            ident: syn::Ident::new("super", Span::call_site()),
+            colon2_token: syn::token::PathSep {
+                spans: [Span::call_site(), Span::call_site()],
+            },
+            tree: Box::new(syn::UseTree::Rename(syn::UseRename {
+                ident: ident.clone(),
+                as_token: syn::token::As {
+                    span: Span::call_site(),
+                },
+                rename: syn::Ident::new("M", Span::call_site()),
+            })),
+        }),
+        semi_token: syn::token::Semi {
+            spans: [Span::call_site()],
+        },
+    })
+}
+
+/// Write a `mod` with all the implementation details without cluttering the surrounding namespace.
+fn impl_mod(
+    ident: &syn::Ident,
+    bind: syn::ImplItemFn,
+    consume: syn::ImplItemFn,
+) -> syn::Result<syn::ItemMod> {
+    let items = vec![
+        syn::Item::Use(syn::parse2(quote! { use rsmonad::prelude::*; })?),
+        syn::Item::Use(syn::parse2(quote! { use super::*; })?),
+        use_as_m(ident),
+        impl_functor()?,
+        impl_pipe()?,
+        impl_monad(bind, consume)?,
+        impl_rshift()?,
+        quickcheck_laws()?,
+    ];
+    Ok(syn::ItemMod {
         attrs: vec![],
         vis: syn::Visibility::Inherited,
         unsafety: None,
@@ -1032,48 +808,93 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
             span: Span::call_site(),
         },
         ident: syn::Ident::new(
-            &(heck::ToSnakeCase::to_snake_case(ident.to_string().as_str()) + "_monad_laws"),
-            Span::call_site(),
+            (heck::ToSnakeCase::to_snake_case(ident.to_string().as_str()) + "_impl").as_str(),
+            ident.span(),
         ),
         content: Some((
-            (syn::token::Brace {
+            syn::token::Brace {
                 span: proc_macro2::Group::new(Delimiter::Brace, TokenStream::new()).delim_span(),
-            }),
-            vec![
-                syn::Item::Use(syn::parse2(quote! { use super::*; })?),
-                {
-                    let mut u: syn::ItemUse =
-                        syn::parse2(quote! { use super::FixItInPost as UnderInvestigation; })?;
-                    let syn::UseTree::Path(upath) = &mut u.tree else {
-                        bail!(u.span(), "Expected a two-term path (i.e. UseTree) like `super::Maybe` but didn't find a `UseTree::Path`");
-                    };
-                    let syn::UseTree::Rename(name) = upath.tree.as_mut() else {
-                        bail!(u.span(), "Expected a two-term path (i.e. UseTree) like `super::Maybe` but didn't find a `UseTree::Rename`");
-                    };
-                    name.ident = ident;
-                    syn::Item::Use(u)
-                },
-                syn::Item::Use(syn::parse2(quote! { use u64 as A; })?),
-                syn::Item::Macro(syn::parse2(quote! {
-                    quickcheck::quickcheck! {
-                        fn prop_left_identity(a: A) -> bool {
-                            rsmonad::monad_laws::left_identity::<_, _, UnderInvestigation<A>, _>(a, &rsmonad::monad_laws::hash_consume::<UnderInvestigation<A>, A>)
-                        }
-                        fn prop_right_identity(m: UnderInvestigation<A>) -> bool {
-                            rsmonad::monad_laws::right_identity(m)
-                        }
-                        fn prop_associativity(m: UnderInvestigation<A>) -> bool {
-                            rsmonad::monad_laws::associativity(m, &rsmonad::monad_laws::hash_consume::<UnderInvestigation<A>, A>, &rsmonad::monad_laws::hash_consume::<UnderInvestigation<A>, A>)
-                        }
-                    }
-                })?),
-            ],
+            },
+            items,
         )),
         semi: None,
-    }
-    .to_tokens(&mut out);
+    })
+}
 
-    Ok(out)
+/// Write an `impl Functor { ...`
+fn impl_functor() -> syn::Result<syn::Item> {
+    Ok(syn::Item::Impl(syn::parse2(quote! {
+        impl<A> Functor<A> for M<A> {
+            type Functor<B> = M<B>;
+            #[inline(always)]
+            fn fmap<B, F: Fn(A) -> B>(self, f: F) -> M<B> {
+                self.bind(move |x| consume(f(x)))
+            }
+        }
+    })?))
+}
+
+/// Write an `impl Monad { ...`.
+fn impl_monad(
+    // ident: &syn::Ident,
+    // generics: &syn::Generics,
+    bind: syn::ImplItemFn,
+    consume: syn::ImplItemFn,
+) -> syn::Result<syn::Item> {
+    let mut item: syn::ItemImpl = syn::parse2(quote! { impl<A> Monad<A> for M<A> {} })?;
+    item.items.push(syn::ImplItem::Type(syn::parse2(
+        quote! { type Monad<B> = M<B>; },
+    )?));
+    item.items.push(syn::ImplItem::Fn(bind));
+    item.items.push(syn::ImplItem::Fn(consume));
+    Ok(syn::Item::Impl(item))
+}
+
+/// Write an `impl BitOr { ...`.
+fn impl_pipe() -> syn::Result<syn::Item> {
+    Ok(syn::Item::Impl(syn::parse2(quote! {
+        impl<A, B, F: Fn(A) -> B> core::ops::BitOr<F> for M<A> {
+            type Output = M<B>;
+            fn bitor(self, f: F) -> M<B> {
+                self.fmap(f)
+            }
+        }
+    })?))
+}
+
+/// Write an `impl Shr { ...`.
+fn impl_rshift() -> syn::Result<syn::Item> {
+    Ok(syn::Item::Impl(syn::parse2(quote! {
+        impl<A, B, F: Fn(A) -> M<B>> core::ops::Shr<F> for M<A> {
+            type Output = M<B>;
+            fn shr(self, f: F) -> M<B> {
+                self.bind(f)
+            }
+        }
+    })?))
+}
+
+/// Write property-based tests for the monad laws and similar laws for other typeclasses.
+fn quickcheck_laws() -> syn::Result<syn::Item> {
+    Ok(syn::Item::Macro(syn::parse2(quote! {
+        quickcheck::quickcheck! {
+            fn prop_monad_left_identity(a: u64) -> bool {
+                rsmonad::laws::monad::left_identity::<u64, u64, M<u64>, _>(a, &rsmonad::laws::hash_consume)
+            }
+            fn prop_monad_right_identity(ma: M<u64>) -> bool {
+                rsmonad::laws::monad::right_identity(ma)
+            }
+            fn prop_monad_associativity(ma: M<u64>) -> bool {
+                rsmonad::laws::monad::associativity::<u64, u64, u64, M<u64>, _, _>(ma, &rsmonad::laws::hash_consume, &(move |x| consume(u64::reverse_bits(x))))
+            }
+            fn prop_functor_identity(fa: M<u64>) -> bool {
+                rsmonad::laws::functor::identity(fa)
+            }
+            fn prop_functor_composition(fa: M<u64>) -> bool {
+                rsmonad::laws::functor::composition(fa, rsmonad::laws::hash, u64::reverse_bits)
+            }
+        }
+    })?))
 }
 
 /// Attribute deriving common traits.

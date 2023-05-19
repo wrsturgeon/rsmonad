@@ -31,7 +31,6 @@ pub mod prelude {
     pub use rsmonad_macros::*;
 
     pub use super::functor::*;
-    pub use super::hkt::*;
     pub use super::monad::*;
 
     pub use super::hazard::*;
@@ -42,10 +41,9 @@ pub mod prelude {
     pub use super::with_std::*;
 }
 
-pub mod monad_laws;
+pub mod laws;
 
 mod functor;
-mod hkt;
 mod monad;
 
 mod hazard;
