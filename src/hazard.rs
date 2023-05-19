@@ -59,7 +59,7 @@ impl<A> Default for Hazard<A> {
         #[cfg(feature = "std")]
         return Failure("Hazard<_> instantiated as a default but not changed".to_owned());
         #[cfg(not(feature = "std"))]
-        return Failure(Default::default());
+        return Failure(());
     }
 }
 
