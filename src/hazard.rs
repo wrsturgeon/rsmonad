@@ -2,7 +2,12 @@
 
 use crate::prelude::*;
 
-/// Currently `String` but may be set to `&str` in the future.
+/// Type alias: `String` when not `no_std`, `()` otherwise.
+#[cfg(not(feature = "std"))]
+type ErrMsg = ();
+
+/// Type alias: `String` when not `no_std`, `()` otherwise.
+#[cfg(feature = "std")]
 type ErrMsg = String;
 
 monad! {
@@ -10,6 +15,8 @@ monad! {
     /// # Use
     /// ```rust
     /// use rsmonad::prelude::*;
+    /// # #[cfg(feature = "std")]
+    /// # {
     /// fn successor(x: u8) -> Hazard<u8> {
     ///     x.checked_add(1).map_or_else(|| Failure("Overflow!".to_owned()), Success)
     /// }
@@ -25,6 +32,7 @@ monad! {
     ///     Success(255_u8) >> successor,
     ///     Failure("Overflow!".to_owned()),
     /// );
+    /// # }
     /// ```
     pub enum Hazard<A> {
         /// Error with a message. Invoking `>>` will immediately return this failure as well.
@@ -48,7 +56,10 @@ monad! {
 impl<A> Default for Hazard<A> {
     #[inline]
     fn default() -> Self {
-        Failure("Hazard<_> instantiated as a default but not changed".to_owned())
+        #[cfg(feature = "std")]
+        return Failure("Hazard<_> instantiated as a default but not changed".to_owned());
+        #[cfg(not(feature = "std"))]
+        return Failure(Default::default());
     }
 }
 
