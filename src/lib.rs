@@ -1,6 +1,7 @@
 //! Haskell-style monads that support `>>=` out of the box with Rust's `>>`.
 
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)] // TODO: remove `not(test)` after https://github.com/rust-fuzz/arbitrary/pull/74
+#![cfg_attr(feature = "nightly", feature(try_trait_v2))]
 #![deny(warnings)]
 #![warn(
     clippy::all,
@@ -29,8 +30,11 @@ pub mod prelude {
     //! In general, always import this with `use rsmonad::prelude::*;`.
     pub use rsmonad_macros::*;
 
+    pub use super::functor::*;
+    pub use super::hkt::*;
     pub use super::monad::*;
 
+    pub use super::hazard::*;
     pub use super::list::*;
     pub use super::maybe::*;
 
@@ -40,9 +44,13 @@ pub mod prelude {
 
 pub mod monad_laws;
 
+mod functor;
+mod hkt;
+mod monad;
+
+mod hazard;
 mod list;
 mod maybe;
-mod monad;
 
 #[cfg(feature = "std")]
 mod with_std;

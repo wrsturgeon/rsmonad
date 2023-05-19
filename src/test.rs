@@ -1,7 +1,11 @@
-use crate::prelude::*;
+use rsmonad::prelude::*;
+
+// Zero-variant enum can't implement `bind` or `consume` since it's uninhabited
+// Zero-member struct neither--plus, `<A>` needs to be used
 
 monad! {
     /// Encodes your mom's box
+    #[derive(Default)]
     pub enum TestMaybe<A> {
         #[default]
         TestNothing,
@@ -20,6 +24,7 @@ monad! {
 
 monad! {
     /// Encodes jack shit
+    #[derive(Default)]
     pub struct BraceStruct<A> {
         val: A
     }
@@ -31,11 +36,12 @@ monad! {
 
 monad! {
     /// Encodes the answer to life, the universe, and everything
-    pub struct TupleStruct<A>(A);
+    #[derive(Default)]
+    pub struct TupleStruct<A>(A, ());
 
     fn bind(self, f) { f(self.0) }
 
-    fn consume(a) { Self(a) }
+    fn consume(a) { Self(a, ()) }
 }
 
 // TODO: figure out how/whether to derive PartialEq for unions

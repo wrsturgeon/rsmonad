@@ -75,3 +75,14 @@ Plus, we automatically derive `QuickCheck::Arbitrary` and property-test the mona
 Right now, you can use `>>` as sugar for `bind` only when you have a _concrete instance_ of `Monad` like `Maybe` but not a general `<M: Monad<A>>`.
 The latter still works but requires an explicit call to `m.bind(f)` (or, if you don't `use` the trait, `Monad::<A>::bind(m, f)`).
 This should be fixed with the Rust's non-lifetime binder feature when it rolls out.
+
+## `#![no_std]`
+
+Disable default features:
+
+```toml
+# Cargo.toml
+
+[dependencies]
+rsmonad = { version = "*", default-features = false }
+```

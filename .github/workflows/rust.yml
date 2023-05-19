@@ -17,16 +17,16 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build `no_std`
-      run: cargo build --verbose
+      run: cargo build --verbose --no-default-features
     - name: Build `std`
-      run: cargo build --verbose --features std
+      run: cargo +nightly build --verbose --all-features
     - name: Clippy `no_std`
-      run: cargo clippy --verbose
+      run: cargo clippy --verbose --no-default-features
     - name: Clippy `std`
-      run: cargo clippy --verbose --features std
+      run: cargo +nightly clippy --verbose --all-features
     - name: Test `no_std`
-      run: cargo test --verbose
+      run: cargo test --verbose --no-default-features
     - name: Test `std`
-      run: cargo test --verbose --features std
+      run: cargo +nightly test --verbose --all-features
     - name: Test macros
       run: cd rsmonad-macros && cargo test --verbose

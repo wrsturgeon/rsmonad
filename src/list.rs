@@ -23,6 +23,7 @@ monad! {
     ///     List(vec!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"]),
     /// );
     /// ```
+    #[derive(Default)]
     pub struct List<A>(pub Vec<A>);
 
     fn bind(self, f) {

@@ -7,7 +7,6 @@
 //! monad! {
 //!     /// Encodes the possibility of failure.
 //!     enum Maybe<A> {
-//!         #[default]
 //!         Nothing,
 //!         Just(A),
 //!     }
@@ -63,7 +62,6 @@
     clippy::shadow_reuse,
     clippy::shadow_unrelated,
     clippy::string_add,
-    clippy::unreachable,
     clippy::wildcard_enum_match_arm
 )]
 
@@ -198,7 +196,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
         data_structure.span()
     );
     def_block.to_tokens(&mut data_structure);
-    let _tuple_struct: bool = if def_block.delimiter() == Delimiter::Parenthesis {
+    if def_block.delimiter() == Delimiter::Parenthesis {
         let semicolon = match_tt!(
             tokens,
             Punct,
@@ -212,13 +210,10 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
             );
         }
         semicolon.to_tokens(&mut data_structure);
-        true
-    } else {
-        false
-    };
+    }
 
     // Parse as either a `struct` or `enum`
-    let (ident, generics) = if structure == "enum" {
+    let (ident, generics, fields) = if structure == "enum" {
         from_enum(
             &mut out,
             syn::parse2(data_structure).map_err(move |e| {
@@ -331,13 +326,13 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
         .generics
         .params
         .push(syn::GenericParam::Type(syn::parse2(
-            quote! { F: Fn(A) -> Self::M<B> },
+            quote! { F: Fn(A) -> Self::Hkt<B> },
         )?));
     bind.sig.output = syn::ReturnType::Type(
         syn::token::RArrow {
             spans: [Span::call_site(), Span::call_site()],
         },
-        Box::new(syn::Type::Path(syn::parse2(quote! { Self::M<B> })?)),
+        Box::new(syn::Type::Path(syn::parse2(quote! { Self::Hkt<B> })?)),
     );
 
     // Parse `consume`
@@ -438,7 +433,11 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                                     .params
                                     .iter()
                                     .map(move |gp| {
-                                        let syn::GenericParam::Type(gpt) = gp else { unreachable!(); };
+                                        let syn::GenericParam::Type(gpt) = gp else {
+                                            // SAFETY:
+                                            // Checked earlier in the function. Not mutable.
+                                            unsafe { core::hint::unreachable_unchecked() }
+                                        };
                                         syn::GenericArgument::Type(syn::Type::Path(syn::TypePath {
                                             qself: None,
                                             path: syn::Path {
@@ -487,7 +486,11 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                                     .params
                                     .iter()
                                     .map(move |gp| {
-                                        let syn::GenericParam::Type(gpt) = gp else { unreachable!(); };
+                                        let syn::GenericParam::Type(gpt) = gp else {
+                                            // SAFETY:
+                                            // Checked earlier in the function. Not mutable.
+                                            unsafe { core::hint::unreachable_unchecked() }
+                                        };
                                         syn::GenericArgument::Type(syn::Type::Path(syn::TypePath {
                                             qself: None,
                                             path: syn::Path {
@@ -526,7 +529,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                 type_token: syn::token::Type {
                     span: Span::call_site(),
                 },
-                ident: syn::Ident::new("M", Span::call_site()),
+                ident: syn::Ident::new("Hkt", Span::call_site()),
                 generics: {
                     let mut g = generics.clone();
                     let Some(syn::GenericParam::Type(gpt)) = g.params.first_mut() else {
@@ -700,7 +703,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
             span: proc_macro2::Group::new(Delimiter::Brace, TokenStream::new()).delim_span(),
         },
         items: vec![
-            syn::ImplItem::Type(syn::parse2(quote! { type Output = <Self as Monad<A>>::M<B>; })?),
+            syn::ImplItem::Type(syn::parse2(quote! { type Output = <Self as Monad<A>>::Hkt<B>; })?),
             syn::ImplItem::Fn(syn::parse2(quote! { #[inline(always)] fn shr(self, f: F) -> Self::Output { self.bind(f) } })?),
         ],
     }
@@ -713,7 +716,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
         impl_token: syn::token::Impl {
             span: Span::call_site(),
         },
-        generics: syn::parse2(quote! { <A: quickcheck::Arbitrary + /* TODO: REMOVE */ Default> })?,
+        generics: syn::parse2(quote! { <A: quickcheck::Arbitrary> })?,
         trait_: Some((
             None,
             syn::parse2(quote! { quickcheck::Arbitrary })?,
@@ -746,22 +749,272 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
                 Box::new(syn::parse2(quote! { Self })?),
             );
             def.block.stmts.push(syn::Stmt::Expr(
-                {
-                    // TODO: IMPLEMENT
-                    syn::parse2(quote! { Default::default() })?
-                    /*
-                    if structure == "struct" {
-                        if tuple_struct {
-                            syn::parse2(quote! { Default::default() })?
-                        } else {
-                            syn::parse2(quote! { Default::default() })?
+                match fields {
+                    Fields::EnumVariants(variants) => {
+                        let mut elems = syn::punctuated::Punctuated::new();
+                        for variant in variants {
+                            let body = if matches!(variant.fields, syn::Fields::Unit) {
+                                Box::new(syn::Expr::Path(syn::ExprPath {
+                                    attrs: vec![],
+                                    qself: None,
+                                    path: syn::Path {
+                                        leading_colon: None,
+                                        segments: {
+                                            let mut p = syn::punctuated::Punctuated::new();
+                                            p.push_value(syn::PathSegment {
+                                                ident: variant.ident,
+                                                arguments: syn::PathArguments::None,
+                                            });
+                                            p
+                                        },
+                                    },
+                                }))
+                            } else {
+                                Box::new(syn::Expr::Call(syn::ExprCall {
+                                    attrs: vec![],
+                                    func: Box::new(syn::Expr::Path(syn::ExprPath {
+                                        attrs: vec![],
+                                        qself: None,
+                                        path: syn::Path {
+                                            leading_colon: None,
+                                            segments: {
+                                                let mut p = syn::punctuated::Punctuated::new();
+                                                p.push_value(syn::PathSegment {
+                                                    ident: variant.ident,
+                                                    arguments: syn::PathArguments::None,
+                                                });
+                                                p
+                                            },
+                                        },
+                                    })),
+                                    paren_token: syn::token::Paren {
+                                        span: proc_macro2::Group::new(
+                                            Delimiter::Parenthesis,
+                                            TokenStream::new(),
+                                        )
+                                        .delim_span(),
+                                    },
+                                    args: {
+                                        let mut p = syn::punctuated::Punctuated::new();
+                                        match variant.fields {
+                                            // SAFETY:
+                                            // Logically impossible. See `if` statement at definition of `body`.
+                                            syn::Fields::Unit => unsafe { core::hint::unreachable_unchecked() },
+                                            syn::Fields::Unnamed(members) => {
+                                                for member in members.unnamed {
+                                                    p.push(syn::Expr::Call({
+                                                        let mut init: syn::ExprCall = syn::parse2(quote! { <FixItInPost as quickcheck::Arbitrary>::arbitrary(gen) })?;
+                                                        match init.func.as_mut() {
+                                                            syn::Expr::Path(path) => {
+                                                                let Some(qself) = &mut path.qself else {
+                                                                    bail!(init.span(), "rsmonad-internal error: couldn't parse qself in `<T as quickcheck::Arbitrary>::arbitrary(gen)`");
+                                                                };
+                                                                *qself.ty.as_mut() = member.ty;
+                                                            }
+                                                            _ => bail!(init.span(), "rsmonad-internal error: couldn't parse `<T as quickcheck::Arbitrary>::arbitrary(gen)` as a path"),
+                                                        }
+                                                        init
+                                                    }));
+                                                }
+                                            }
+                                            syn::Fields::Named(members) => {
+                                                for member in members.named {
+                                                    p.push(syn::Expr::Call({
+                                                        let mut init: syn::ExprCall = syn::parse2(quote! { <FixItInPost as quickcheck::Arbitrary>::arbitrary(gen) })?;
+                                                        match init.func.as_mut() {
+                                                            syn::Expr::Path(path) => {
+                                                                let Some(qself) = &mut path.qself else {
+                                                                    bail!(init.span(), "rsmonad-internal error: couldn't parse qself in `<T as quickcheck::Arbitrary>::arbitrary(gen)`");
+                                                                };
+                                                                *qself.ty.as_mut() = member.ty;
+                                                            }
+                                                            _ => bail!(init.span(), "rsmonad-internal error: couldn't parse `<T as quickcheck::Arbitrary>::arbitrary(gen)` as a path"),
+                                                        }
+                                                        init
+                                                    }));
+                                                }
+                                            }
+                                        }
+                                        p
+                                    },
+                                }))
+                            };
+                            let closure = syn::Expr::Closure(syn::ExprClosure {
+                                attrs: vec![],
+                                lifetimes: None,
+                                constness: None,
+                                movability: None,
+                                asyncness: None,
+                                capture: Some(syn::token::Move { span: Span::call_site() }),
+                                or1_token: syn::token::Or {
+                                    spans: [Span::call_site()],
+                                },
+                                inputs: {
+                                    let mut inputs = syn::punctuated::Punctuated::new();
+                                    inputs.push_value(syn::Pat::Ident(syn::PatIdent {
+                                        attrs: vec![],
+                                        by_ref: None,
+                                        mutability: None,
+                                        ident: syn::Ident::new("gen", Span::call_site()),
+                                        subpat: None,
+                                    }));
+                                    inputs
+                                },
+                                or2_token: syn::token::Or {
+                                    spans: [Span::call_site()],
+                                },
+                                output: syn::ReturnType::Default,
+                                body,
+                            });
+                            let paren = syn::Expr::Paren(syn::ExprParen {
+                                attrs: vec![],
+                                paren_token: syn::token::Paren {
+                                    span: proc_macro2::Group::new(
+                                        Delimiter::Parenthesis,
+                                        TokenStream::new(),
+                                    )
+                                    .delim_span(),
+                                },
+                                expr: Box::new(closure),
+                            });
+                            elems.push(syn::Expr::Cast(syn::ExprCast {
+                                attrs: vec![],
+                                expr: Box::new(paren),
+                                as_token: syn::token::As { span: Span::call_site() },
+                                ty: Box::new(syn::parse2(quote! { fn(&mut quickcheck::Gen) -> Self })?),
+                            }));
                         }
-                    } else if structure == "enum" {
-                        syn::parse2(quote! { Default::default() })?
-                    } else {
-                        bail!(structure.span(), "Not a `struct` or an `enum`")
+                        let mut choose: syn::ExprCall = syn::parse2(quote! { g.choose::<fn(&mut quickcheck::Gen) -> Self>(&[]).unwrap()(g) })?;
+                        let syn::Expr::MethodCall(pre_call) = choose.func.as_mut() else {
+                            bail!(Span::call_site(), "rsmonad-internal error: expected a method call")
+                        };
+                        let syn::Expr::MethodCall(pre_pre_call) = pre_call.receiver.as_mut() else {
+                            bail!(Span::call_site(), "rsmonad-internal error: expected a method call")
+                        };
+                        let Some(syn::Expr::Reference(array_ref)) = pre_pre_call.args.first_mut() else {
+                            bail!(Span::call_site(), "rsmonad-internal error: expected a single reference argument")
+                        };
+                        let syn::Expr::Array(closures) = array_ref.expr.as_mut() else {
+                            bail!(choose.args.span(), "rsmonad-internal error: expected an array")
+                        };
+                        closures.elems = elems;
+                        syn::Expr::Call(choose)
                     }
-                    */
+                    Fields::StructMembers(members) => match members {
+                        syn::Fields::Unit => syn::Expr::Path(syn::ExprPath {
+                            attrs: vec![],
+                            qself: None,
+                            path: syn::Path {
+                                leading_colon: None,
+                                segments: {
+                                    let mut p = syn::punctuated::Punctuated::new();
+                                    p.push_value(syn::PathSegment {
+                                        ident: syn::Ident::new("Self", Span::call_site()),
+                                        arguments: syn::PathArguments::None,
+                                    });
+                                    p
+                                }
+                            }
+                        }),
+                        syn::Fields::Named(named) => {
+                            syn::Expr::Struct(syn::ExprStruct {
+                                attrs: vec![],
+                                qself: None,
+                                path: syn::Path {
+                                    leading_colon: None,
+                                    segments: {
+                                        let mut p = syn::punctuated::Punctuated::new();
+                                        p.push_value(syn::PathSegment {
+                                            ident: syn::Ident::new("Self", Span::call_site()),
+                                            arguments: syn::PathArguments::None,
+                                        });
+                                        p
+                                    }
+                                },
+                                brace_token: syn::token::Brace {
+                                    span: proc_macro2::Group::new(
+                                        Delimiter::Brace,
+                                        TokenStream::new(),
+                                    )
+                                    .delim_span(),
+                                },
+                                fields: {
+                                    let mut p = syn::punctuated::Punctuated::new();
+                                    for member in named.named {
+                                        p.push(syn::FieldValue {
+                                            attrs: vec![],
+                                            member: syn::Member::Named(member.ident.clone().ok_or_else(|| syn::Error::new(member.span(), "Expected a named field"))?),
+                                            colon_token: Some(syn::token::Colon { spans: [Span::call_site()] }),
+                                            expr: syn::Expr::Call({
+                                                let mut init: syn::ExprCall = syn::parse2(quote! { <FixItInPost as quickcheck::Arbitrary>::arbitrary(g) })?;
+                                                match init.func.as_mut() {
+                                                    syn::Expr::Path(path) => {
+                                                        let Some(qself) = &mut path.qself else {
+                                                            bail!(init.span(), "rsmonad-internal error: couldn't parse qself in `<T as quickcheck::Arbitrary>::arbitrary(g)`");
+                                                        };
+                                                        *qself.ty.as_mut() = member.ty;
+                                                    }
+                                                    _ => bail!(init.span(), "rsmonad-internal error: couldn't parse `<T as quickcheck::Arbitrary>::arbitrary(g)` as a path"),
+                                                }
+                                                init
+                                            }),
+                                        });
+                                    }
+                                    p
+                                },
+                                dot2_token: None,
+                                rest: None,
+                            })
+                        },
+                        syn::Fields::Unnamed(unnamed) => {
+                            syn::Expr::Call(syn::ExprCall {
+                                attrs: vec![],
+                                func: Box::new(syn::Expr::Path(syn::ExprPath {
+                                    attrs: vec![],
+                                    qself: None,
+                                    path: syn::Path {
+                                        leading_colon: None,
+                                        segments: {
+                                            let mut p = syn::punctuated::Punctuated::new();
+                                            p.push_value(syn::PathSegment {
+                                                ident: syn::Ident::new("Self", Span::call_site()),
+                                                arguments: syn::PathArguments::None,
+                                            });
+                                            p
+                                        },
+                                    },
+                                })),
+                                paren_token: syn::token::Paren {
+                                    span: proc_macro2::Group::new(
+                                        Delimiter::Parenthesis,
+                                        TokenStream::new(),
+                                    )
+                                    .delim_span(),
+                                },
+                                args: {
+                                    let mut args = syn::punctuated::Punctuated::new();
+                                    for member in unnamed.unnamed {
+                                        args.push(
+                                            syn::Expr::Call({
+                                                let mut init: syn::ExprCall = syn::parse2(quote! { <FixItInPost as quickcheck::Arbitrary>::arbitrary(g) })?;
+                                                match init.func.as_mut() {
+                                                    syn::Expr::Path(path) => {
+                                                        let Some(qself) = &mut path.qself else {
+                                                            bail!(init.span(), "rsmonad-internal error: couldn't parse qself in `<T as quickcheck::Arbitrary>::arbitrary(g)`");
+                                                        };
+                                                        *qself.ty.as_mut() = member.ty;
+                                                    }
+                                                    _ => bail!(init.span(), "rsmonad-internal error: couldn't parse `<T as quickcheck::Arbitrary>::arbitrary(g)` as a path"),
+                                                }
+                                                init
+                                            }),
+                                        );
+                                    }
+                                    args
+                                },
+                            })
+                        },
+                    },
                 },
                 None,
             ));
@@ -826,7 +1079,7 @@ fn transmute(raw_ts: TokenStream) -> syn::Result<TokenStream> {
 /// Attribute deriving common traits.
 fn derives() -> syn::Result<syn::Attribute> {
     let ml: syn::MetaList = syn::parse2(
-        quote! {derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)},
+        quote! {derive(Clone, Debug, /* Default, */ Eq, Hash, Ord, PartialEq, PartialOrd)},
     )
     .map_err(move |e| {
         syn::Error::new(
@@ -869,12 +1122,20 @@ fn exhaustion() -> syn::Result<syn::Attribute> {
     })
 }
 
+/// Either `struct` or `enum` fields.
+enum Fields {
+    /// Enum variants.
+    EnumVariants(syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>),
+    /// Struct members.
+    StructMembers(syn::Fields),
+}
+
 /// Parse an enum.
 fn from_enum(
     out: &mut TokenStream,
     mut item: syn::ItemEnum,
     publicity: Option<proc_macro2::Ident>,
-) -> syn::Result<(syn::Ident, syn::Generics)> {
+) -> syn::Result<(syn::Ident, syn::Generics, Fields)> {
     item.attrs.push(exhaustion()?);
     item.attrs.push(derives()?);
     item.to_tokens(out);
@@ -895,16 +1156,24 @@ fn from_enum(
     })
     .to_tokens(out);
     proc_macro2::Punct::new(';', proc_macro2::Spacing::Alone).to_tokens(out);
-    Ok((item.ident, item.generics))
+    Ok((
+        item.ident,
+        item.generics,
+        Fields::EnumVariants(item.variants),
+    ))
 }
 
 /// Parse a struct.
 fn from_struct(
     out: &mut TokenStream,
     mut item: syn::ItemStruct,
-) -> syn::Result<(syn::Ident, syn::Generics)> {
+) -> syn::Result<(syn::Ident, syn::Generics, Fields)> {
     item.attrs.push(exhaustion()?);
     item.attrs.push(derives()?);
     item.to_tokens(out);
-    Ok((item.ident, item.generics))
+    Ok((
+        item.ident,
+        item.generics,
+        Fields::StructMembers(item.fields),
+    ))
 }
