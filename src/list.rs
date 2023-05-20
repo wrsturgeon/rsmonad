@@ -16,15 +16,15 @@ use alloc::vec::Vec;
 /// use rsmonad::prelude::*;
 /// // from the wonderful Haskell docs: https://en.wikibooks.org/wiki/Haskell/Understanding_monads/List
 /// fn bunny(s: &str) -> List<&str> {
-///     List(vec![s, s, s])
+///     list![s, s, s]
 /// }
 /// assert_eq!(
-///     List::consume("bunny") >> bunny,
-///     List(vec!["bunny", "bunny", "bunny"]),
+///     list!["bunny"] >> bunny,
+///     list!["bunny", "bunny", "bunny"],
 /// );
 /// assert_eq!(
-///     List::consume("bunny") >> bunny >> bunny,
-///     List(vec!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"]),
+///     list!["bunny"] >> bunny >> bunny,
+///     list!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"],
 /// );
 /// ```
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, QuickCheck)]
@@ -39,8 +39,8 @@ pub struct List<A>(Vec<A>);
 /// ```
 #[macro_export]
 macro_rules! list {
-    ($($tt:tt)+) => {
-        rsmonad::prelude::List(vec![$($tt)+])
+    ($($tt:tt)*) => {
+        <List<_> as From<Vec<_>>>::from(vec![$($tt)*])
     };
 }
 pub use list;
