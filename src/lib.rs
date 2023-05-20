@@ -28,7 +28,12 @@ extern crate self as rsmonad;
 
 pub mod prelude {
     //! In general, always import this with `use rsmonad::prelude::*;`.
-    pub use rsmonad_macros::*;
+
+    pub use derive_quickcheck::QuickCheck;
+    pub use quickcheck::quickcheck;
+
+    pub use super::entropy::*;
+    pub use super::macros::*;
 
     pub use super::functor::*;
     pub use super::monad::*;
@@ -41,7 +46,8 @@ pub mod prelude {
     pub use super::with_std::*;
 }
 
-pub mod laws;
+mod entropy;
+mod macros;
 
 mod functor;
 mod monad;
@@ -52,6 +58,3 @@ mod maybe;
 
 #[cfg(feature = "std")]
 mod with_std;
-
-#[cfg(test)]
-mod test;

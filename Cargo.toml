@@ -1,6 +1,6 @@
 [package]
 name = "rsmonad"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Will Sturgeon <willstrgn@gmail.com>"]
 edition = "2021"
 description = "Haskell-style monads for idiomatic Rust."
@@ -12,10 +12,10 @@ categories = ["mathematics", "encoding", "no-std", "compilers", "data-structures
 
 [dependencies]
 ahash = ">=0.8.3"
-quickcheck = ">=1.0.3"
+derive-quickcheck = ">=0.1.1"
+quickcheck = ">=1"
+paste = ">=1"
 same-as = ">=1"
-# rsmonad-macros = { path = "rsmonad-macros" }
-rsmonad-macros = ">=0.1.2"
 
 [features]
 default = ["std"]

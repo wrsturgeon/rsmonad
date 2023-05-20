@@ -1,7 +1,5 @@
 //! Trait definition.
 
-use same_as::SameAs;
-
 use crate::prelude::Functor;
 
 /// Original Haskell definition:
@@ -11,11 +9,11 @@ use crate::prelude::Functor;
 /// (>>)   :: m a ->       m b  -> m b
 /// return :: a -> m a
 /// ```
-pub trait Monad<A>: SameAs<Self::Monad<A>> + Functor<A> {
+pub trait Monad<A>: Functor<A> {
     // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> MB> core::ops::Shr<F>`
 
     /// Fucking pain in the ass redundancy. This has to be in this trait to avoid potential spooky action at a distance e.g. by redefining a separate Hkt later.
-    type Monad<B>: Monad<B>;
+    type Monad<B>: Monad<B, Monad<A> = Self>;
     /// Mutate internal state with some function.
     fn bind<B, F: Fn(A) -> Self::Monad<B>>(self, f: F) -> Self::Monad<B>;
     /// Construct a monad from a value.

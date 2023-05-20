@@ -2,64 +2,57 @@
 
 use crate::prelude::*;
 
-/// Type alias: `String` when not `no_std`, `()` otherwise.
-#[cfg(not(feature = "std"))]
-type ErrMsg = ();
-
-/// Type alias: `String` when not `no_std`, `()` otherwise.
+/// Type alias for default failure info depending on `no_std` or not (`String` is a pain in the ass).
 #[cfg(feature = "std")]
-type ErrMsg = String;
+type DefaultErr = String;
+/// Type alias for default failure info depending on `no_std` or not (`String` is a pain in the ass).
+#[cfg(not(feature = "std"))]
+type DefaultErr = ();
+
+/// Encodes the possibility of failure with a reason.
+/// # Use
+/// ```rust
+/// use rsmonad::prelude::*;
+/// # #[cfg(feature = "std")]
+/// # {
+/// fn successor(x: u8) -> Hazard<u8, &'static str> {
+///     x.checked_add(1).map_or_else(|| Failure("Overflow!"), Success)
+/// }
+/// assert_eq!(
+///     Success(3_u8) >> successor,
+///     Success(4),
+/// );
+/// assert_eq!(
+///     Failure("No value provided") >> successor,
+///     Failure("No value provided"),
+/// );
+/// assert_eq!(
+///     Success(255_u8) >> successor,
+///     Failure("Overflow!"),
+/// );
+/// # }
+/// ```
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, QuickCheck)]
+pub enum Hazard<A, E = DefaultErr> {
+    /// Failure with information. Invoking `>>` will immediately return this failure as well.
+    Failure(E),
+    /// A value that hasn't failed (yet). Invoking `>>` on some function `f` will call `f` with that value as its argument.
+    Success(A),
+}
+pub use Hazard::{Failure, Success};
 
 monad! {
-    /// Encodes the possibility of failure with a reason.
-    /// # Use
-    /// ```rust
-    /// use rsmonad::prelude::*;
-    /// # #[cfg(feature = "std")]
-    /// # {
-    /// fn successor(x: u8) -> Hazard<u8> {
-    ///     x.checked_add(1).map_or_else(|| Failure("Overflow!".to_owned()), Success)
-    /// }
-    /// assert_eq!(
-    ///     Success(3_u8) >> successor,
-    ///     Success(4),
-    /// );
-    /// assert_eq!(
-    ///     Failure("No value provided".to_owned()) >> successor,
-    ///     Failure("No value provided".to_owned()),
-    /// );
-    /// assert_eq!(
-    ///     Success(255_u8) >> successor,
-    ///     Failure("Overflow!".to_owned()),
-    /// );
-    /// # }
-    /// ```
-    pub enum Hazard<A> {
-        /// Error with a message. Invoking `>>` will immediately return this failure as well.
-        Failure(ErrMsg),
-        /// A value that hasn't failed (yet). Invoking `>>` on some function `f` will call `f` with that value as its argument.
-        Success(A),
-    }
+    Hazard<A, E>:
 
     fn bind(self, f) {
         match self {
             Success(a) => f(a),
-            Failure(s) => Failure(s),
+            Failure(e) => Failure(e),
         }
     }
 
     fn consume(a) {
         Success(a)
-    }
-}
-
-impl<A> Default for Hazard<A> {
-    #[inline]
-    fn default() -> Self {
-        #[cfg(feature = "std")]
-        return Failure("Hazard<_> instantiated as a default but not changed".to_owned());
-        #[cfg(not(feature = "std"))]
-        return Failure(());
     }
 }
 

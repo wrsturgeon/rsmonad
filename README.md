@@ -10,15 +10,17 @@ At the moment, Haskell's monadic `>>` seems unnecessary in an eager language lik
 
 ## Use
 
-Just write a `monad! { ...` and you get all its superclasses like `Functor` for free, plus common derives like `Debug`, `Clone`, `Eq`, `Ord`, `Hash`, etc., and `enum`s have all their members `pub use`d:
+Just write a `monad! { ...` and you get all its superclasses like `Functor` for free, plus property-based tests of the monad laws:
 ```rust
 use rsmonad::prelude::*;
 
+enum Maybe<A> {
+    Just(A),
+    Nothing,
+}
+
 monad! {
-    enum Maybe<A> {
-        Just(A),
-        Nothing,
-    }
+    Maybe<A>:
 
     fn bind(self, f) {
         match self {
@@ -46,6 +48,14 @@ assert_eq!(Nothing | u8::is_power_of_two, Nothing);
 
 ## Examples
 
+The logic of Haskell lists with the speed of Rust vectors:
+```rust
+use rsmonad::prelude::*;
+let li = list![1, 2, 3, 4, 5];
+fn and_ten(x: u8) -> List<u8> { list![x, 10 * x] }
+assert_eq!(li >> and_ten, list![1, 10, 2, 20, 3, 30, 4, 40, 5, 50]);
+```
+
 Catch `panic`s without worrying about the details:
 ```rust
 fn afraid_of_circles(x: u8) -> BlastDoor<()> {
@@ -62,31 +72,28 @@ assert_eq!(
 );
 ```
 
-The logic of Haskell lists with the speed of Rust vectors:
+_N_-fold bind without type annotations:
 ```rust
 // from the wonderful Haskell docs: https://en.wikibooks.org/wiki/Haskell/Understanding_monads/List
 fn bunny(s: &str) -> List<&str> {
-    List(vec![s, s, s])
+    list![s, s, s]
 }
 assert_eq!(
-    List::consume("bunny") >> bunny,
-    List(vec!["bunny", "bunny", "bunny"]),
+    list!["bunny"] >> bunny,
+    list!["bunny", "bunny", "bunny"],
 );
 assert_eq!(
-    List::consume("bunny") >> bunny >> bunny,
-    List(vec!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"]),
+    list!["bunny"] >> bunny >> bunny,
+    list!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"],
 );
 ```
 
 And even the notoriously tricky `join`-in-terms-of-`bind` with no type annotations necessary:
 ```rust
-let li = List::consume(List::consume(0_u8)); // List<List<u8>>
-let joined = li.join();                      // -->  List<u8>!
-assert_eq!(joined, List::consume(0_u8));
+let li = list![list![0_u8]]; // List<List<u8>>
+let joined = li.join();      // -->  List<u8>!
+assert_eq!(joined, list![0]);
 ```
-
-Plus, we automatically derive `QuickCheck::Arbitrary` and property-test the monad and functor laws.
-Just run `cargo test` and they'll run alongside all your other tests.
 
 ## Sharp edges
 

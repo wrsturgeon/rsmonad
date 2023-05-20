@@ -1,6 +1,6 @@
 //! `BlastDoor` monad.
 
-use super::UnwindMonad;
+use crate::prelude::*;
 use core::panic::{RefUnwindSafe, UnwindSafe};
 
 /// Encodes the possibility of panicking.
@@ -21,7 +21,7 @@ use core::panic::{RefUnwindSafe, UnwindSafe};
 /// );
 /// ```
 #[allow(clippy::exhaustive_enums)]
-#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, QuickCheck)]
 pub enum BlastDoor<A: UnwindSafe> {
     /// Panicked: no value. Invoking `>>` will immediately return `Kaboom` as well.
     #[default]

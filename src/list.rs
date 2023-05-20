@@ -4,27 +4,63 @@ extern crate alloc;
 use crate::prelude::*;
 use alloc::vec::Vec;
 
+/// Encodes nondeterminism.
+/// # Use
+/// ```rust
+/// use rsmonad::prelude::*;
+/// let li = list![1, 2, 3, 4, 5];
+/// fn and_ten(x: u8) -> List<u8> { list![x, 10 * x] }
+/// assert_eq!(li >> and_ten, list![1, 10, 2, 20, 3, 30, 4, 40, 5, 50]);
+/// ```
+/// ```rust
+/// use rsmonad::prelude::*;
+/// // from the wonderful Haskell docs: https://en.wikibooks.org/wiki/Haskell/Understanding_monads/List
+/// fn bunny(s: &str) -> List<&str> {
+///     List(vec![s, s, s])
+/// }
+/// assert_eq!(
+///     List::consume("bunny") >> bunny,
+///     List(vec!["bunny", "bunny", "bunny"]),
+/// );
+/// assert_eq!(
+///     List::consume("bunny") >> bunny >> bunny,
+///     List(vec!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"]),
+/// );
+/// ```
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, QuickCheck)]
+pub struct List<A>(Vec<A>);
+
+/// Initialize an `rsmonad` List.
+/// ```rust
+/// use rsmonad::prelude::*;
+/// let li = list![1, 2, 3, 4, 5];
+/// fn and_ten(x: u8) -> List<u8> { list![x, 10 * x] }
+/// assert_eq!(li >> and_ten, list![1, 10, 2, 20, 3, 30, 4, 40, 5, 50]);
+/// ```
+#[macro_export]
+macro_rules! list {
+    ($($tt:tt)+) => {
+        rsmonad::prelude::List(vec![$($tt)+])
+    };
+}
+pub use list;
+
+impl<A> From<Vec<A>> for List<A> {
+    #[inline(always)]
+    fn from(value: Vec<A>) -> Self {
+        Self(value)
+    }
+}
+
+impl<T> From<List<T>> for Vec<T> {
+    #[inline(always)]
+    fn from(value: List<T>) -> Self {
+        value.0
+    }
+}
+
 monad! {
-    /// Encodes the possibility of failure.
-    /// # Use
-    /// Similar to Rust's `Option::map`:
-    /// ```rust
-    /// use rsmonad::prelude::*;
-    /// // from the wonderful Haskell docs: https://en.wikibooks.org/wiki/Haskell/Understanding_monads/List
-    /// fn bunny(s: &str) -> List<&str> {
-    ///     List(vec![s, s, s])
-    /// }
-    /// assert_eq!(
-    ///     List::consume("bunny") >> bunny,
-    ///     List(vec!["bunny", "bunny", "bunny"]),
-    /// );
-    /// assert_eq!(
-    ///     List::consume("bunny") >> bunny >> bunny,
-    ///     List(vec!["bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny", "bunny"]),
-    /// );
-    /// ```
-    #[derive(Default)]
-    pub struct List<A>(pub Vec<A>);
+    List<A>:
 
     fn bind(self, f) {
         let mut v = Vec::new();
