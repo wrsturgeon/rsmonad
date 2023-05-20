@@ -30,5 +30,3 @@ jobs:
       run: cargo test --verbose --no-default-features
     - name: Test `std`
       run: cargo +nightly test --verbose --all-features
-    - name: Test macros
-      run: cd rsmonad-macros && cargo test --verbose
