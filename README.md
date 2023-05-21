@@ -103,7 +103,7 @@ This should be fixed with the Rust's non-lifetime binder feature when it rolls o
 
 ### "Cannot find type `...` in this scope" in a doctest
 
-Doctestsi try to guess where to place a `fn main { ... }` if you don't provide one, and sometimes it reads an `rsmonad` macro as something that should be in a `main` block.
+Doctests try to guess where to place a `fn main { ... }` if you don't provide one, and sometimes it reads an `rsmonad` macro as something that should be in a `main` block.
 Try adding an explicit `fn main () { ... }` around the statements you want to run.
 If you don't want `fn main() { ... }` to show up in documentation but can't fix this error, comment it out:
 ```rust
