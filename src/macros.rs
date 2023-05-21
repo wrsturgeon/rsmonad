@@ -175,8 +175,8 @@ pub use fold;
 ///     fn combine(self, other) { Summand(self.0 + other.0) }
 /// }
 ///
-/// # #[cfg(feature = "std")] {
 /// # fn main() {
+/// # #[cfg(feature = "std")] {
 /// assert_eq!(list![Summand(1), Summand(2)].unify(), Summand(3));
 /// # }
 /// # }
