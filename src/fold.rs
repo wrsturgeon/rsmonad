@@ -28,12 +28,12 @@ where
         }
         acc
     }
-    /// Folds a monoid. Unless overriden, uses the initial value `mempty` and the combinator `mconcat`.
+    /// Folds a monoid. Unless overriden, uses the initial value `unit` and the combinator `combine`.
     #[inline]
-    fn mconcat(self) -> <Self as Fold>::Item
+    fn unify(self) -> <Self as Fold>::Item
     where
         <Self as Fold>::Item: Monoid,
     {
-        Monoid::mconcat(self)
+        Monoid::unify(self)
     }
 }

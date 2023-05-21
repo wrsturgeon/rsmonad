@@ -198,9 +198,9 @@ monad! {
 monoid! {
     List<A>:
 
-    fn mempty() { list![] }
+    fn unit() { list![] }
 
-    fn mappend(self, other) {
+    fn combine(self, other) {
         self.append(&mut other);
         self
     }

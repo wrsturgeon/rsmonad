@@ -2,9 +2,11 @@
 
 /// Container over which we can map a function.
 /// ```rust
+/// # #[cfg(feature = "std")] {
 /// use rsmonad::prelude::*;
 /// let li = list![1, 2, 3, 4, 5];
 /// assert_eq!(li | u8::is_power_of_two, list![true, true, false, true, false]);
+/// # }
 /// ```
 pub trait Functor<A> {
     /// Fucking pain in the ass redundancy. This has to be in this trait to avoid potential spooky action at a distance e.g. by redefining a separate Hkt later.

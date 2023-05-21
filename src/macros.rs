@@ -128,6 +128,7 @@ pub use monad;
 /// ```rust
 /// use rsmonad::prelude::*;
 ///
+/// # #[cfg(feature = "std")] {
 /// struct Container<A>(pub Vec<A>);
 ///
 /// # impl<A> IntoIterator for Container<A> { type Item = A; type IntoIter = <Vec<A> as IntoIterator>::IntoIter; fn into_iter(self) -> <Self as IntoIterator>::IntoIter { self.0.into_iter() } }
@@ -137,6 +138,7 @@ pub use monad;
 ///
 ///     type Item = A;
 /// }
+/// # }
 /// # fn main() {}
 /// ```
 #[macro_export]
@@ -168,18 +170,20 @@ pub use fold;
 /// monoid! {
 ///     Summand:
 ///
-///     fn mempty() { Summand(0) }
+///     fn unit() { Summand(0) }
 ///
-///     fn mappend(self, other) { Summand(self.0 + other.0) }
+///     fn combine(self, other) { Summand(self.0 + other.0) }
 /// }
 ///
+/// # #[cfg(feature = "std")] {
 /// # fn main() {
-/// assert_eq!(list![Summand(1), Summand(2)].mconcat(), Summand(3));
+/// assert_eq!(list![Summand(1), Summand(2)].unify(), Summand(3));
+/// # }
 /// # }
 /// ```
 #[macro_export]
 macro_rules! monoid {
-    ($name:ident$(<$($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+>)?: fn mempty() $mempty:block fn mappend($self:ident, $other:ident) $mappend:block) => {
+    ($name:ident$(<$($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+>)?: fn unit() $unit:block fn combine($self:ident, $other:ident) $combine:block) => {
         paste! {
             mod [<$name:snake _monoid_impl>] {
                 use $crate::prelude::*;
@@ -188,8 +192,8 @@ macro_rules! monoid {
 
                 #[allow(clippy::missing_trait_methods)]
                 impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? Monoid for $name$(<$($g_ty),+>)? {
-                    #[inline(always)] #[must_use] fn mempty() -> Self $mempty
-                    #[inline(always)] #[must_use] fn mappend(mut $self, mut $other: Self) -> Self $mappend
+                    #[inline(always)] #[must_use] fn unit() -> Self $unit
+                    #[inline(always)] #[must_use] fn combine(mut $self, mut $other: Self) -> Self $combine
                 }
             }
         }

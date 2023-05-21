@@ -20,7 +20,7 @@ monad! {
 monoid! {
     Sum<A: core::ops::Add + From<u8>>:
 
-    fn mempty() { consume(0_u8.into()) }
+    fn unit() { consume(0_u8.into()) }
 
-    fn mappend(self, other) { consume(self.0 + other.0) }
+    fn combine(self, other) { consume(self.0 + other.0) }
 }

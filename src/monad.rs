@@ -43,17 +43,21 @@ pub fn consume<A, MA: Monad<A>>(a: A) -> MA {
 /// Flatten a nested monad into its enclosing monad.
 /// # Use
 /// ```rust
+/// # #[cfg(feature = "std")] {
 /// use rsmonad::prelude::*;
 /// let li = List::consume(List::consume(0_u8)); // List<List<u8>>
 /// let joined = join(li);                       // -->  List<u8>!
 /// assert_eq!(joined, List::consume(0_u8));
+/// # }
 /// ```
 /// Or via the `Monad` method:
 /// ```rust
+/// # #[cfg(feature = "std")] {
 /// # use rsmonad::prelude::*;
 /// let li = List::consume(List::consume(0_u8));
 /// let joined = li.join();
 /// assert_eq!(joined, List::consume(0_u8));
+/// # }
 /// ```
 /// Trippy Haskell signature when defined in terms of `id`:
 /// ```haskell

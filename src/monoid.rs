@@ -8,42 +8,42 @@ use crate::prelude::*;
 pub trait Monoid {
     /// The identity element.
     #[must_use]
-    fn mempty() -> Self;
-    /// Combine two values to produce a third. `mempty` on either side should do nothing.
+    fn unit() -> Self;
+    /// Combine two values to produce a third. `unit` on either side should do nothing.
     #[must_use]
-    fn mappend(self, other: Self) -> Self;
-    /// Fold a monoid onto itself in the way you'd think. Concretely, we by default use `mempty` as the initial value and `mappend` as the combinator.
+    fn combine(self, other: Self) -> Self;
+    /// Fold a monoid onto itself in the way you'd think. Concretely, we by default use `unit` as the initial value and `combine` as the combinator.
     #[inline(always)]
     #[must_use]
-    fn mconcat<F: Fold<Item = Self>>(f: F) -> Self
+    fn unify<F: Fold<Item = Self>>(f: F) -> Self
     where
         Self: Sized,
         F::IntoIter: DoubleEndedIterator,
     {
-        f.foldr(mappend, mempty())
+        f.foldr(combine, unit())
     }
 }
 
 /// The identity element of a monoid.
 #[inline(always)]
 #[must_use]
-pub fn mappend<M: Monoid>(a: M, b: M) -> M {
-    M::mappend(a, b)
+pub fn combine<M: Monoid>(a: M, b: M) -> M {
+    M::combine(a, b)
 }
 
-/// Combine two values to produce a third. `mempty` on either side should do nothing.
+/// Combine two values to produce a third. `unit` on either side should do nothing.
 #[inline(always)]
 #[must_use]
-pub fn mempty<M: Monoid>() -> M {
-    M::mempty()
+pub fn unit<M: Monoid>() -> M {
+    M::unit()
 }
 
-/// Fold a monoid onto itself in the way you'd think. Concretely, we by default use `mempty` as the initial value and `mappend` as the combinator.
+/// Fold a monoid onto itself in the way you'd think. Concretely, we by default use `unit` as the initial value and `combine` as the combinator.
 #[inline(always)]
 #[must_use]
-pub fn mconcat<M: Monoid, F: Fold<Item = M>>(f: F) -> M
+pub fn unify<M: Monoid, F: Fold<Item = M>>(f: F) -> M
 where
     F::IntoIter: DoubleEndedIterator,
 {
-    M::mconcat(f)
+    M::unify(f)
 }
