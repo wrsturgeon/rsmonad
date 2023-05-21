@@ -1,6 +1,6 @@
 //! Simple hash functions for property testing.
 
-use rsmonad::prelude::*;
+use crate::prelude::*;
 
 /// Hashes anything hashable into a `u64`.
 #[inline]

@@ -23,19 +23,19 @@ pub use paste::paste;
 /// ```
 #[macro_export]
 macro_rules! functor {
-    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:ident $(+ $g_bounds:ident)*)?),+)?>: fn fmap($self:ident, $f:ident) $fmap:block) => {
+    ($name:ident<A$(: $a_bound:path $(, $a_bounds:path)*)? $(, $($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+)?>: fn fmap($self:ident, $f:ident) $fmap:block) => {
         paste! {
             mod [<$name:snake _functor_impl>] {
-                use rsmonad::prelude::*;
+                use $crate::prelude::*;
                 #[allow(unused_imports)]
                 use super::*;
 
-                impl<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Functor<A> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
-                    type Functor<B> = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>;
+                impl<A$(: $a_bound $(+ $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Functor<A> for $name<A $(, $($g_ty),+)?> {
+                    type Functor<B> = $name<B $(, $($g_ty),+)?>;
                     #[inline(always)] #[must_use] fn fmap<B, F: Fn(A) -> B>($self, $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $fmap
                 }
 
-                impl<A, B, F: Fn(A) -> B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitOr<F> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
+                impl<A$(: $a_bound $(+ $a_bounds)*)?, B, F: Fn(A) -> B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitOr<F> for $name<A $(, $($g_ty),+)?> {
                     type Output = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>;
                     #[inline(always)] #[must_use] fn bitor(self, f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> { self.fmap(f) }
                 }
@@ -75,10 +75,10 @@ pub use functor;
 /// ```
 #[macro_export]
 macro_rules! monad {
-    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:ident $(+ $g_bounds:ident)*)?),+)?>: fn bind($self:ident, $f:ident) $bind:block fn consume($a:ident) $consume:block) => {
+    ($name:ident<A$(: $a_bound:path $(, $a_bounds:path)*)? $(, $($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+)?>: fn bind($self:ident, $f:ident) $bind:block fn consume($a:ident) $consume:block) => {
         paste! {
-            rsmonad::prelude::functor! {
-                $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
+            $crate::prelude::functor! {
+                $name<A$(: $a_bound $(, $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
 
                 fn fmap(self, f) {
                     self.bind(move |x| consume(f(x)))
@@ -86,25 +86,25 @@ macro_rules! monad {
             }
 
             mod [<$name:snake _monad_impl>] {
-                use rsmonad::prelude::*;
+                use $crate::prelude::*;
                 #[allow(unused_imports)]
                 use super::*;
 
                 #[allow(clippy::missing_trait_methods)]
-                impl<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Monad<A> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
-                    type Monad<B> = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bound2)*)?),+)?>;
+                impl<A$(: $a_bound $(, $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Monad<A> for $name<A $(, $($g_ty),+)?> {
+                    type Monad<B> = $name<B $(, $($g_ty),+)?>;
                     #[inline(always)] #[must_use] fn bind<B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>>($self, $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $bind
                     #[inline(always)] #[must_use] fn consume($a: A) -> Self $consume
                 }
 
-                impl<A, B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Shr<F> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
+                impl<A$(: $a_bound $(, $a_bounds)*)?, B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Shr<F> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
                     type Output = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>;
-                    #[inline(always)] #[must_use] fn shr(self, f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> { self.bind(f) }
+                    #[inline(always)] #[must_use] fn shr(self, f: F) -> $name<B $(, $($g_ty),+)?> { self.bind(f) }
                 }
 
                 quickcheck::quickcheck! {
                     fn prop_left_identity(a: u64) -> bool {
-                        use rsmonad::entropy::hash_consume as f;
+                        use $crate::entropy::hash_consume as f;
                         $name::<u64>::consume(a).bind(f) == f(a)
                     }
                     fn prop_right_identity(ma: $name<u64>) -> bool {
@@ -113,8 +113,8 @@ macro_rules! monad {
                     }
                     fn prop_associativity(ma: $name<u64>) -> bool {
                         #![allow(clippy::arithmetic_side_effects)]
-                        use rsmonad::entropy::hash_consume as g;
-                        use rsmonad::entropy::reverse_consume as h;
+                        use $crate::entropy::hash_consume as g;
+                        use $crate::entropy::reverse_consume as h;
                         ((ma.clone() >> g) >> h) == (ma.bind(move |a| { let ga: $name<u64> = g(a); ga.bind(h) }))
                     }
                 }
@@ -123,3 +123,76 @@ macro_rules! monad {
     };
 }
 pub use monad;
+
+/// Implement `Fold` (and its superclasses automatically) after a definition.
+/// ```rust
+/// use rsmonad::prelude::*;
+///
+/// struct Container<A>(pub Vec<A>);
+///
+/// # impl<A> IntoIterator for Container<A> { type Item = A; type IntoIter = <Vec<A> as IntoIterator>::IntoIter; fn into_iter(self) -> <Self as IntoIterator>::IntoIter { self.0.into_iter() } }
+///
+/// fold! {
+///     Container<A>:
+///
+///     type Item = A;
+/// }
+/// # fn main() {}
+/// ```
+#[macro_export]
+macro_rules! fold {
+    ($name:ident$(<$($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+>)?: type Item = $item:ty;) => {
+        paste! {
+            mod [<$name:snake _fold_impl>] {
+                use $crate::prelude::*;
+                #[allow(unused_imports)]
+                use super::*;
+
+                #[allow(clippy::missing_trait_methods)]
+                impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? Fold for $name$(<$($g_ty),+>)? {
+                    type Item = $item;
+                }
+            }
+        }
+    };
+}
+pub use fold;
+
+/// Implement `Monoid` (and its superclasses automatically) after a definition.
+/// ```rust
+/// use rsmonad::prelude::*;
+///
+/// #[derive(Debug, PartialEq)]
+/// struct Summand(pub u8);
+///
+/// monoid! {
+///     Summand:
+///
+///     fn mempty() { Summand(0) }
+///
+///     fn mappend(self, other) { Summand(self.0 + other.0) }
+/// }
+///
+/// # fn main() {
+/// assert_eq!(list![Summand(1), Summand(2)].mconcat(), Summand(3));
+/// # }
+/// ```
+#[macro_export]
+macro_rules! monoid {
+    ($name:ident$(<$($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+>)?: fn mempty() $mempty:block fn mappend($self:ident, $other:ident) $mappend:block) => {
+        paste! {
+            mod [<$name:snake _monoid_impl>] {
+                use $crate::prelude::*;
+                #[allow(unused_imports)]
+                use super::*;
+
+                #[allow(clippy::missing_trait_methods)]
+                impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? Monoid for $name$(<$($g_ty),+>)? {
+                    #[inline(always)] #[must_use] fn mempty() -> Self $mempty
+                    #[inline(always)] #[must_use] fn mappend(mut $self, mut $other: Self) -> Self $mappend
+                }
+            }
+        }
+    }
+}
+pub use monoid;

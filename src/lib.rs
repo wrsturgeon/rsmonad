@@ -21,10 +21,9 @@
     clippy::inline_always,
     clippy::mod_module_files,
     clippy::pub_use,
-    clippy::separated_literal_suffix
+    clippy::separated_literal_suffix,
+    clippy::single_char_lifetime_names
 )]
-
-extern crate self as rsmonad;
 
 pub mod prelude {
     //! In general, always import this with `use rsmonad::prelude::*;`.
@@ -35,12 +34,15 @@ pub mod prelude {
     pub use super::entropy::*;
     pub use super::macros::*;
 
+    pub use super::fold::*;
     pub use super::functor::*;
     pub use super::monad::*;
+    pub use super::monoid::*;
 
     pub use super::hazard::*;
     pub use super::list::*;
     pub use super::maybe::*;
+    // pub use super::sum::*;
 
     #[cfg(feature = "std")]
     pub use super::with_std::*;
@@ -49,12 +51,15 @@ pub mod prelude {
 mod entropy;
 mod macros;
 
+mod fold;
 mod functor;
 mod monad;
+mod monoid;
 
 mod hazard;
 mod list;
 mod maybe;
+// mod sum;
 
 #[cfg(feature = "std")]
 mod with_std;
