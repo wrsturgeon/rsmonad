@@ -191,7 +191,7 @@ monad! {
     }
 
     fn consume(a) {
-        Self(alloc::vec![a])
+        Self(vec![a])
     }
 }
 
