@@ -40,7 +40,6 @@ pub mod prelude {
     pub use super::monoid::*;
 
     pub use super::hazard::*;
-    pub use super::list::*;
     pub use super::maybe::*;
     // pub use super::sum::*;
 
@@ -57,7 +56,6 @@ mod monad;
 mod monoid;
 
 mod hazard;
-mod list;
 mod maybe;
 // mod sum;
 

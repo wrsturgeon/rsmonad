@@ -1,8 +1,6 @@
 //! `List` monad.
 
-extern crate alloc;
 use crate::prelude::*;
-use alloc::vec::Vec;
 
 /// Encodes nondeterminism.
 /// # Use
