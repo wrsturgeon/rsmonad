@@ -163,15 +163,6 @@ impl<A> IntoIterator for List<A> {
     }
 }
 
-impl<A> core::ops::Add for List<A> {
-    type Output = Self;
-    #[inline(always)]
-    fn add(mut self, mut rhs: Self) -> Self::Output {
-        self.append(&mut rhs);
-        self
-    }
-}
-
 impl<A> core::ops::AddAssign for List<A> {
     #[inline(always)]
     fn add_assign(&mut self, mut rhs: Self) {

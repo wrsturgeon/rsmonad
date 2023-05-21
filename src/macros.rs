@@ -128,17 +128,14 @@ pub use monad;
 /// ```rust
 /// use rsmonad::prelude::*;
 ///
-/// # #[cfg(feature = "std")] {
-/// struct Container<A>(pub Vec<A>);
-///
-/// # impl<A> IntoIterator for Container<A> { type Item = A; type IntoIter = <Vec<A> as IntoIterator>::IntoIter; fn into_iter(self) -> <Self as IntoIterator>::IntoIter { self.0.into_iter() } }
+/// struct Pair<A>(pub [A; 2]);
+/// # impl<A> IntoIterator for Pair<A> { type Item = A; type IntoIter = <[A; 2] as IntoIterator>::IntoIter; fn into_iter(self) -> <Self as IntoIterator>::IntoIter { self.0.into_iter() } }
 ///
 /// fold! {
-///     Container<A>:
+///     Pair<A>:
 ///
 ///     type Item = A;
 /// }
-/// # }
 /// # fn main() {}
 /// ```
 #[macro_export]
@@ -153,6 +150,11 @@ macro_rules! fold {
                 #[allow(clippy::missing_trait_methods)]
                 impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? Fold for $name$(<$($g_ty),+>)? {
                     type Item = $item;
+                }
+
+                impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? core::ops::Not for $name$(<$($g_ty),+>)? where <Self as Fold>::Item: Monoid {
+                    type Output = <Self as Fold>::Item;
+                    #[inline(always)] fn not(self) -> Self::Output { self.unify() }
                 }
             }
         }
@@ -177,7 +179,13 @@ pub use fold;
 ///
 /// # fn main() {
 /// # #[cfg(feature = "std")] {
-/// assert_eq!(list![Summand(1), Summand(2)].unify(), Summand(3));
+/// // Identical semantics (`+` is always `combine`, even for e.g. multiplication):
+/// assert_eq!(Summand(1).combine(Summand(2)).combine(Summand(3)), Summand(6));
+/// assert_eq!(Summand(1) + Summand(2) + Summand(3), Summand(6));
+///
+/// // `!` is `unify`:
+/// assert_eq!(list![Summand(1), Summand(2), Summand(3)].unify(), Summand(6));
+/// assert_eq!(!list![Summand(1), Summand(2), Summand(3)], Summand(6));
 /// # }
 /// # }
 /// ```
@@ -194,6 +202,11 @@ macro_rules! monoid {
                 impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? Monoid for $name$(<$($g_ty),+>)? {
                     #[inline(always)] #[must_use] fn unit() -> Self $unit
                     #[inline(always)] #[must_use] fn combine(mut $self, mut $other: Self) -> Self $combine
+                }
+
+                impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? core::ops::Add<Self> for $name$(<$($g_ty),+>)? {
+                    type Output = Self;
+                    #[inline(always)] #[must_use] fn add(self, other: Self) -> Self { self.combine(other) }
                 }
             }
         }

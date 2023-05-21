@@ -97,9 +97,23 @@ assert_eq!(joined, list![0]);
 
 ## Sharp edges
 
-Right now, you can use `>>` as sugar for `bind` only when you have a _concrete instance_ of `Monad` like `Maybe` but not a general `<M: Monad<A>>`.
+Right now, you can use `>>` for `bind` only when you have a _concrete instance_ of `Monad` like `Maybe` but not a general `<M: Monad<A>>`.
 The latter still works but requires an explicit call to `m.bind(f)` (or, if you don't `use` the trait, `Monad::<A>::bind(m, f)`).
 This should be fixed with the Rust's non-lifetime binder feature when it rolls out.
+
+### "Cannot find type `...` in this scope" in a doctest
+
+Doctestsi try to guess where to place a `fn main { ... }` if you don't provide one, and sometimes it reads an `rsmonad` macro as something that should be in a `main` block.
+Try adding an explicit `fn main () { ... }` around the statements you want to run.
+If you don't want `fn main() { ... }` to show up in documentation but can't fix this error, comment it out:
+```rust
+/// monad! { ... }
+/// # fn main {
+/// a();
+/// b();
+/// c();
+/// # }
+```
 
 ## `#![no_std]`
 
