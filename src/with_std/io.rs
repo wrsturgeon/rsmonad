@@ -27,12 +27,12 @@ pub struct Io<A>(A);
 monad! {
     Io<A>:
 
-    fn bind(self, f) {
-        f(self.0)
-    }
-
     fn consume(a) {
         Self(a)
+    }
+
+    fn bind(self, f) {
+        f(self.0)
     }
 }
 

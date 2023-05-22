@@ -44,15 +44,15 @@ pub use Hazard::{Failure, Success};
 monad! {
     Hazard<A, E>:
 
+    fn consume(a) {
+        Success(a)
+    }
+
     fn bind(self, f) {
         match self {
             Success(a) => f(a),
             Failure(e) => Failure(e),
         }
-    }
-
-    fn consume(a) {
-        Success(a)
     }
 }
 

@@ -173,12 +173,12 @@ impl<A> core::ops::AddAssign for List<A> {
 monad! {
     List<A>:
 
-    fn bind(self, f) {
-        List(self.0.bind(move |a| f(a).0))
-    }
-
     fn consume(a) {
         Self(vec![a])
+    }
+
+    fn bind(self, f) {
+        List(self.0.bind(move |a| f(a).0))
     }
 }
 

@@ -34,6 +34,7 @@ pub mod prelude {
     pub use super::entropy::*;
     pub use super::macros::*;
 
+    pub use super::applicative::*;
     pub use super::fold::*;
     pub use super::functor::*;
     pub use super::monad::*;
@@ -51,6 +52,7 @@ pub mod prelude {
 mod entropy;
 mod macros;
 
+mod applicative;
 mod fold;
 mod functor;
 mod monad;

@@ -41,30 +41,97 @@ pub use test_functor;
 /// ```
 #[macro_export]
 macro_rules! functor {
-    ($name:ident<A$(: $a_bound:path $(, $a_bounds:path)*)? $(, $($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+)?>: fn fmap($self:ident, $f:ident) $fmap:block) => {
+    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+)?>: fn fmap($self:ident, $f:ident) $fmap:block) => {
         paste! {
             mod [<$name:snake _functor_impl>] {
-                #![allow(unused_mut)]
+                #![allow(unused_imports, unused_mut)]
                 use $crate::prelude::*;
-                #[allow(unused_imports)]
                 use super::*;
 
-                impl<A$(: $a_bound $(+ $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Functor<A> for $name<A $(, $($g_ty),+)?> {
+                impl<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Functor<A> for $name<A $(, $($g_ty),+)?> {
                     type Functor<B> = $name<B $(, $($g_ty),+)?>;
                     #[inline(always)] #[must_use] fn fmap<B, F: Fn(A) -> B>(mut $self, mut $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $fmap
                 }
 
-                impl<A$(: $a_bound $(+ $a_bounds)*)?, B, F: Fn(A) -> B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitOr<F> for $name<A $(, $($g_ty),+)?> {
-                    type Output = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>;
-                    #[inline(always)] #[must_use] fn bitor(mut self, mut f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> { self.fmap(f) }
+                impl<A, B, F: Fn(A) -> B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitOr<F> for $name<A $(, $($g_ty),+)?> {
+                    type Output = $name<B $(, $($g_ty),+)?>;
+                    #[inline(always)] #[must_use] fn bitor(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.fmap(f) }
                 }
 
-                $crate::test_functor! { $name<u64> }
+                $crate::test_functor! { $name<u64 $(, $($g_ty),+)?> }
             }
         }
     };
 }
 pub use functor;
+
+/// Test the Applicative laws.
+#[macro_export]
+macro_rules! test_applicative {
+    ($name:ty) => {
+        quickcheck::quickcheck! {
+            fn prop_fmap(ab: $name) -> bool {
+                use $crate::entropy::hash as f;
+                (ab | f) == (ab * consume(f))
+            }
+            fn prop_identity(ab: $name) -> bool {
+                use $crate::entropy::hash as f;
+                ab == (ab * consume(f))
+            }
+            fn prop_homomorphism(b: u64) -> bool {
+                use $crate::entropy::hash as f;
+                consume(f(b)) == (consume(f) * consume(b))
+            }
+            fn prop_interchange(b: u64) -> bool {
+                use $crate::entropy::hash as f;
+                let af = consume(f);
+                (consume(b) * af) == consume(move |g| g(b)).tie(af)
+            }
+            fn prop_composition(b: u64) -> bool {
+                use $crate::entropy::hash as f;
+                use $crate::entropy::reverse as g;
+                f.tie(g.tie(b)) == consume(move |f2, g2| f2(g2(x))).tie(f).tie(g).tie(b)
+            }
+        }
+    };
+}
+pub use test_applicative;
+
+/// Implement `Applicative` (and its superclasses automatically) after a definition.
+#[macro_export]
+macro_rules! applicative {
+    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn consume($a:ident) $consume:block fn tie($self:ident, $ab:ident) $tie:block) => {
+        paste! {
+            $crate::prelude::functor! {
+                $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
+
+                fn fmap(self, f) {
+                    self * consume(f)
+                }
+            }
+
+            mod [<$name:snake _applicative_impl>] {
+                #![allow(unused_imports, unused_mut)]
+                use $crate::prelude::*;
+                use super::*;
+
+                impl<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Applicative<A> for $name<A $(, $($g_ty),+)?> {
+                    type Applicative<B> = $name<B $(, $($g_ty),+)?>;
+                    #[inline(always)] #[must_use] fn consume(mut $a: A) -> Self $consume
+                    #[inline(always)] #[must_use] fn tie<B, C>(mut $self, mut $ab: Self::Applicative<B>) -> Self::Applicative<C> where A: Fn(B) -> C $tie
+                }
+
+                impl<A, B, F: Fn(A) -> B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Mul<$name<F $(, $($g_ty),+)?>> for $name<A $(, $($g_ty),+)?> {
+                    type Output = $name<B $(, $($g_ty),+)?>;
+                    #[inline(always)] #[must_use] fn mul(self, af: $name<F $(, $($g_ty),+)?>) -> Self::Output { af.tie(self) }
+                }
+
+                $crate::test_applicative! { $name<u64 $(, $($g_ty),+)?> }
+            }
+        }
+    };
+}
+pub use applicative;
 
 /// Test the monad laws.
 #[macro_export]
@@ -120,13 +187,15 @@ pub use test_monad;
 /// ```
 #[macro_export]
 macro_rules! monad {
-    ($name:ident<A$(: $a_bound:tt $(+ $a_bounds:tt)*)? $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn bind($self:ident, $f:ident) $bind:block fn consume($a:ident) $consume:block) => {
+    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn consume($a:ident) $consume:block fn bind($self:ident, $f:ident) $bind:block) => {
         paste! {
-            $crate::prelude::functor! {
-                $name<A$(: $a_bound $(, $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
+            $crate::prelude::applicative! {
+                $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
 
-                fn fmap(self, f) {
-                    self.bind(move |x| consume(f(x)))
+                fn consume($a) $consume
+
+                fn tie(self, ab) {
+                    self.bind(move |f| ab.bind(move |b| consume(f(b))))
                 }
             }
 
@@ -137,18 +206,17 @@ macro_rules! monad {
                 use super::*;
 
                 #[allow(clippy::missing_trait_methods)]
-                impl<A$(: $a_bound $(, $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Monad<A> for $name<A $(, $($g_ty),+)?> {
+                impl<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Monad<A> for $name<A $(, $($g_ty),+)?> {
                     type Monad<B> = $name<B $(, $($g_ty),+)?>;
                     #[inline(always)] #[must_use] fn bind<B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>>(mut $self, mut $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $bind
-                    #[inline(always)] #[must_use] fn consume(mut $a: A) -> Self $consume
                 }
 
-                impl<A$(: $a_bound $(, $a_bounds)*)?, B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Shr<F> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
+                impl<A, B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Shr<F> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
                     type Output = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>;
                     #[inline(always)] #[must_use] fn shr(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.bind(f) }
                 }
 
-                test_monad! { $name<u64> }
+                test_monad! { $name<u64 $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> }
             }
         }
     };

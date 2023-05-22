@@ -14,15 +14,29 @@ impl<A> Functor<A> for Option<A> {
     }
 }
 
+impl<A> Applicative<A> for Option<A> {
+    type Applicative<B> = Option<B>;
+    #[inline(always)]
+    fn consume(a: A) -> Self {
+        Some(a)
+    }
+    #[inline(always)]
+    fn tie<B, C>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
+    where
+        A: Fn(B) -> C,
+    {
+        match (self, ab) {
+            (Some(f), Some(b)) => Some(f(b)),
+            _ => None,
+        }
+    }
+}
+
 impl<A> Monad<A> for Option<A> {
     type Monad<B> = Option<B>;
     #[inline(always)]
     fn bind<B, F: Fn(A) -> Self::Monad<B>>(self, f: F) -> Self::Monad<B> {
         self.and_then(f)
-    }
-    #[inline(always)]
-    fn consume(a: A) -> Self {
-        Some(a)
     }
 }
 

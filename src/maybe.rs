@@ -35,15 +35,15 @@ pub use Maybe::{Just, Nothing};
 monad! {
     Maybe<A>:
 
+    fn consume(a) {
+        Just(a)
+    }
+
     fn bind(self, f) {
         match self {
             Just(a) => f(a),
             Nothing => Nothing,
         }
-    }
-
-    fn consume(a) {
-        Just(a)
     }
 }
 

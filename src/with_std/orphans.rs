@@ -14,6 +14,20 @@ impl<A> Functor<A> for Vec<A> {
     }
 }
 
+impl<A> Applicative<A> for Vec<A> {
+    type Applicative<B> = Vec<B>;
+    #[inline(always)]
+    fn consume(a: A) -> Self {
+        vec![a]
+    }
+    fn tie<B, C>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
+    where
+        A: Fn(B) -> C,
+    {
+        self.bind(move |f| ab.bind(move |b| consume(f(b))))
+    }
+}
+
 impl<A> Monad<A> for Vec<A> {
     type Monad<B> = Vec<B>;
     #[inline(always)]
@@ -23,10 +37,6 @@ impl<A> Monad<A> for Vec<A> {
             v.append(&mut f(a));
         }
         v
-    }
-    #[inline(always)]
-    fn consume(a: A) -> Self {
-        vec![a]
     }
 }
 
