@@ -19,8 +19,6 @@ It's a bit of a contrived example, but here's what's going on:
 - `unify` calls `fold` on a `Monoid` in the way you'd think: start with `unit` (here, 0), then call `combine` (here, `+`) at each step. All this is inferred at compile time from `Sum`'s `Monoid` implementation.
 In the end, we get to add a list (woohoo, so impressive), but in a clearly modular way that works as a drop-in (potentially _generic_) pattern to compute anything like it.
 
-*Actually, `0_u8.into()`, but always some kind of zero.
-
 ## Syntax
 
 Rust requires `>>=` to be self-modifying, so we use `>>` instead of `>>=` and `consume` instead of `return` (keyword).
