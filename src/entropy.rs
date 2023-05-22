@@ -19,9 +19,16 @@ pub fn hash_consume<M: Monad<u64, Monad<u64> = M>, H: core::hash::Hash>(h: H) ->
     consume(hash(h))
 }
 
+/// Reverses bits.
+#[inline]
+#[must_use]
+pub fn reverse(a: u64) -> u64 {
+    a.reverse_bits()
+}
+
 /// Reverses bits then consumes into a monad.
 #[inline]
 #[must_use]
 pub fn reverse_consume<M: Monad<u64>>(a: u64) -> M {
-    consume(u64::reverse_bits(a))
+    consume(reverse(a))
 }

@@ -182,19 +182,40 @@ monad! {
     }
 }
 
-monoid! {
-    List<A>:
-
-    fn unit() { list![] }
-
-    fn combine(self, other) {
-        self.append(&mut other);
-        self
-    }
-}
-
 fold! {
     List<A>:
 
     type Item = A;
+}
+
+mod list_monoid_impl {
+    #![allow(
+        clippy::arithmetic_side_effects,
+        clippy::missing_docs_in_private_items,
+        clippy::missing_trait_methods,
+        clippy::wildcard_imports
+    )]
+    use super::*;
+    impl<A> Monoid for List<A> {
+        #[inline(always)]
+        #[must_use]
+        fn unit() -> Self {
+            <Self as From<Vec<_>>>::from(Vec::new())
+        }
+        #[inline(always)]
+        #[must_use]
+        fn combine(mut self, mut other: Self) -> Self {
+            self.append(&mut other);
+            self
+        }
+    }
+    impl<A> core::ops::Add<Self> for List<A> {
+        type Output = Self;
+        #[inline(always)]
+        #[must_use]
+        fn add(self, other: Self) -> Self {
+            self.combine(other)
+        }
+    }
+    crate::test_monoid! { List<u64> }
 }

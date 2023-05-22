@@ -2,6 +2,24 @@
 
 pub use paste::paste;
 
+/// Test the functor laws.
+#[macro_export]
+macro_rules! test_functor {
+    ($name:ty) => {
+        quickcheck::quickcheck! {
+            fn prop_identity(fa: $name) -> bool {
+                fa.clone() == (fa | core::convert::identity)
+            }
+            fn prop_composition(fa: $name) -> bool {
+                use $crate::entropy::hash as g;
+                use $crate::entropy::reverse as h;
+                (fa.clone() | (move |a| g(h(a)))) == (fa | h | g)
+            }
+        }
+    };
+}
+pub use test_functor;
+
 /// Implement `Functor` (and its superclasses automatically) after a definition.
 /// ```rust
 /// use rsmonad::prelude::*;
@@ -26,24 +44,51 @@ macro_rules! functor {
     ($name:ident<A$(: $a_bound:path $(, $a_bounds:path)*)? $(, $($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+)?>: fn fmap($self:ident, $f:ident) $fmap:block) => {
         paste! {
             mod [<$name:snake _functor_impl>] {
+                #![allow(unused_mut)]
                 use $crate::prelude::*;
                 #[allow(unused_imports)]
                 use super::*;
 
                 impl<A$(: $a_bound $(+ $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Functor<A> for $name<A $(, $($g_ty),+)?> {
                     type Functor<B> = $name<B $(, $($g_ty),+)?>;
-                    #[inline(always)] #[must_use] fn fmap<B, F: Fn(A) -> B>($self, $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $fmap
+                    #[inline(always)] #[must_use] fn fmap<B, F: Fn(A) -> B>(mut $self, mut $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $fmap
                 }
 
                 impl<A$(: $a_bound $(+ $a_bounds)*)?, B, F: Fn(A) -> B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitOr<F> for $name<A $(, $($g_ty),+)?> {
                     type Output = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>;
-                    #[inline(always)] #[must_use] fn bitor(self, f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> { self.fmap(f) }
+                    #[inline(always)] #[must_use] fn bitor(mut self, mut f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> { self.fmap(f) }
                 }
+
+                $crate::test_functor! { $name<u64> }
             }
         }
     };
 }
 pub use functor;
+
+/// Test the monad laws.
+#[macro_export]
+macro_rules! test_monad {
+    ($name:ty) => {
+        quickcheck::quickcheck! {
+            fn prop_left_identity(a: u64) -> bool {
+                use $crate::entropy::hash_consume as f;
+                consume::<u64, $name>(a).bind(f) == f(a)
+            }
+            fn prop_right_identity(ma: $name) -> bool {
+                #![allow(clippy::arithmetic_side_effects)]
+                ma.clone() == (ma >> consume)
+            }
+            fn prop_associativity(ma: $name) -> bool {
+                #![allow(clippy::arithmetic_side_effects)]
+                use $crate::entropy::hash_consume as g;
+                use $crate::entropy::reverse_consume as h;
+                ((ma.clone() >> g) >> h) == (ma.bind(move |a| { let ga: $name = g(a); ga.bind(h) }))
+            }
+        }
+    };
+}
+pub use test_monad;
 
 /// Implement `Monad` (and its superclasses automatically) after a definition.
 /// ```rust
@@ -86,6 +131,7 @@ macro_rules! monad {
             }
 
             mod [<$name:snake _monad_impl>] {
+                #![allow(unused_mut)]
                 use $crate::prelude::*;
                 #[allow(unused_imports)]
                 use super::*;
@@ -93,31 +139,16 @@ macro_rules! monad {
                 #[allow(clippy::missing_trait_methods)]
                 impl<A$(: $a_bound $(, $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Monad<A> for $name<A $(, $($g_ty),+)?> {
                     type Monad<B> = $name<B $(, $($g_ty),+)?>;
-                    #[inline(always)] #[must_use] fn bind<B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>>($self, $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $bind
-                    #[inline(always)] #[must_use] fn consume($a: A) -> Self $consume
+                    #[inline(always)] #[must_use] fn bind<B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>>(mut $self, mut $f: F) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $bind
+                    #[inline(always)] #[must_use] fn consume(mut $a: A) -> Self $consume
                 }
 
                 impl<A$(: $a_bound $(, $a_bounds)*)?, B, F: Fn(A) -> $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Shr<F> for $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> {
                     type Output = $name<B $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>;
-                    #[inline(always)] #[must_use] fn shr(self, f: F) -> $name<B $(, $($g_ty),+)?> { self.bind(f) }
+                    #[inline(always)] #[must_use] fn shr(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.bind(f) }
                 }
 
-                quickcheck::quickcheck! {
-                    fn prop_left_identity(a: u64) -> bool {
-                        use $crate::entropy::hash_consume as f;
-                        $name::<u64>::consume(a).bind(f) == f(a)
-                    }
-                    fn prop_right_identity(ma: $name<u64>) -> bool {
-                        #![allow(clippy::arithmetic_side_effects)]
-                        ma.clone() == (ma >> consume)
-                    }
-                    fn prop_associativity(ma: $name<u64>) -> bool {
-                        #![allow(clippy::arithmetic_side_effects)]
-                        use $crate::entropy::hash_consume as g;
-                        use $crate::entropy::reverse_consume as h;
-                        ((ma.clone() >> g) >> h) == (ma.bind(move |a| { let ga: $name<u64> = g(a); ga.bind(h) }))
-                    }
-                }
+                test_monad! { $name<u64> }
             }
         }
     };
@@ -157,6 +188,25 @@ macro_rules! fold {
 }
 pub use fold;
 
+/// Test the monoid laws.
+#[macro_export]
+macro_rules! test_monoid {
+    ($name:ty) => {
+        quickcheck::quickcheck! {
+            fn prop_associativity(ma: $name, mb: $name, mc: $name) -> bool {
+                (ma.clone() + (mb.clone() + mc.clone())) == ((ma + mb) + mc)
+            }
+            fn prop_left_identity(ma: $name) -> bool {
+                ma.clone() == ma + unit()
+            }
+            fn prop_right_identity(ma: $name) -> bool {
+                ma.clone() == ma + unit()
+            }
+        }
+    };
+}
+pub use test_monoid;
+
 /// Implement `Monoid` (and its superclasses automatically) after a definition.
 /// ```rust
 /// use rsmonad::prelude::*;
@@ -187,6 +237,8 @@ macro_rules! monoid {
     ($name:ident$(<$($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+>)?: fn unit() $unit:block fn combine($self:ident, $other:ident) $combine:block) => {
         paste! {
             mod [<$name:snake _monoid_impl>] {
+                #![allow(clippy::arithmetic_side_effects, unused_mut)]
+
                 use $crate::prelude::*;
                 #[allow(unused_imports)]
                 use super::*;
@@ -199,8 +251,10 @@ macro_rules! monoid {
 
                 impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? core::ops::Add<Self> for $name$(<$($g_ty),+>)? {
                     type Output = Self;
-                    #[inline(always)] #[must_use] fn add(self, other: Self) -> Self { self.combine(other) }
+                    #[inline(always)] #[must_use] fn add(mut self, mut other: Self) -> Self { self.combine(other) }
                 }
+
+                test_monoid! { $name }
             }
         }
     }

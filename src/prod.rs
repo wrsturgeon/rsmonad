@@ -1,4 +1,4 @@
-//! Sum monoid.
+//! Product monoid.
 
 #![allow(clippy::missing_trait_methods)]
 
@@ -8,19 +8,19 @@ use crate::prelude::*;
 /// ```rust
 /// use rsmonad::prelude::*;
 /// assert_eq!(
-///     (list![1, 2, 3, 4, 5] | Sum).unify(),
-///     Sum(15)
+///     (list![1, 2, 3, 4, 5] | Product).unify(),
+///     Product(120)
 /// );
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, QuickCheck)]
-pub struct Sum(pub usize);
+pub struct Product(pub usize);
 
 monoid! {
-    Sum:
+    Product:
 
-    fn unit() { Self(0) }
+    fn unit() { Self(1) }
 
-    fn combine(self, other) { Self(self.0.wrapping_add(other.0)) }
+    fn combine(self, other) { Self(self.0.wrapping_mul(other.0)) }
 }
 
 // TODO: WrapSum, SatSum, etc.

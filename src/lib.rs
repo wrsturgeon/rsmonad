@@ -41,7 +41,8 @@ pub mod prelude {
 
     pub use super::hazard::*;
     pub use super::maybe::*;
-    pub use super::sum::*;
+    pub use super::prod_u8::*;
+    pub use super::sum_u8::*;
 
     #[cfg(feature = "std")]
     pub use super::with_std::*;
@@ -57,7 +58,8 @@ mod monoid;
 
 mod hazard;
 mod maybe;
-mod sum;
+mod prod_u8;
+mod sum_u8;
 
 mod orphans;
 
