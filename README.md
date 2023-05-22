@@ -14,7 +14,8 @@ assert_eq!(
 ```
 It's a bit of a contrived example, but here's what's going on:
 - `List` is a `Monad`; `list!` is syntactic sugar. It automatically infers the `u8` type for each element (all the way up to `Sum(15)`: no need to write `15_u8`).
-- `|` is a synonym for `fmap` and `Sum` is a tuple-struct used as a function (e.g. `|x| Sum(x)`, eta-reduced).
+- `|` is a synonym for `fmap`.
+- `Sum` is a tuple-struct used as a function (e.g. `|x| Sum(x)`, but eta-reduced).
 - `unify` calls `fold` on a `Monoid` in the way you'd think: start with `unit` (here, 0), then call `combine` (here, `+`) at each step. All this is inferred at compile time from `Sum`'s `Monoid` implementation.
 In the end, we get to add a list (woohoo, so impressive), but in a clearly modular way that works as a drop-in (potentially _generic_) pattern to compute anything like it.
 
