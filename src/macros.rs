@@ -151,11 +151,6 @@ macro_rules! fold {
                 impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? Fold for $name$(<$($g_ty),+>)? {
                     type Item = $item;
                 }
-
-                impl$(<$($g_ty $(: $g_bound $(+ $g_bounds)*)?),+>)? core::ops::Not for $name$(<$($g_ty),+>)? where <Self as Fold>::Item: Monoid {
-                    type Output = <Self as Fold>::Item;
-                    #[inline(always)] fn not(self) -> Self::Output { self.unify() }
-                }
             }
         }
     };
@@ -179,13 +174,11 @@ pub use fold;
 ///
 /// # fn main() {
 /// # #[cfg(feature = "std")] {
-/// // Identical semantics (`+` is always `combine`, even for e.g. multiplication):
+/// // `+` is shorthand for `combine`, even for monoids that don't look like addition
 /// assert_eq!(Summand(1).combine(Summand(2)).combine(Summand(3)), Summand(6));
 /// assert_eq!(Summand(1) + Summand(2) + Summand(3), Summand(6));
 ///
-/// // `!` is `unify`:
 /// assert_eq!(list![Summand(1), Summand(2), Summand(3)].unify(), Summand(6));
-/// assert_eq!(!list![Summand(1), Summand(2), Summand(3)], Summand(6));
 /// # }
 /// # }
 /// ```

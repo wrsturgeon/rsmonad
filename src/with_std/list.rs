@@ -174,11 +174,7 @@ monad! {
     List<A>:
 
     fn bind(self, f) {
-        let mut v = Vec::new();
-        for a in self.0 {
-            v.append(&mut f(a).0);
-        }
-        List(v)
+        List(self.0.bind(move |a| f(a).0))
     }
 
     fn consume(a) {

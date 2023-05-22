@@ -59,5 +59,7 @@ mod hazard;
 mod maybe;
 // mod sum;
 
+mod orphans;
+
 #[cfg(feature = "std")]
 mod with_std;
