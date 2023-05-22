@@ -8,6 +8,25 @@ Rust requires `>>=` to be self-modifying, so we use `>>` instead of `>>=` and `c
 For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x | f | g | ...`.
 At the moment, Haskell's monadic `>>` seems unnecessary in an eager language like Rust, but I could easily be overlooking something!
 
+## All-in-one example
+
+Monads, monoids, functors, & folds in one statement:
+```rust
+use rsmonad::prelude::*;
+assert_eq!(
+    (list![1_u8, 2, 3, 4, 5] | Sum).unify(),
+    Sum(15)
+);
+```
+It's a bit of a contrived example, but here's what's going on:
+- `List` is a `Monad`. `list!` calls `consume` (Haskell's `return`) on each element (theoretically, but elided in the actual implementation) and infers the `u8` type for the whole list.
+- `|` is a synonym for `fmap` (chosen to look like a Shell pipe). On each element, we "call" `Sum`, the name of a one-element tuple-struct that's also a `Monoid`.
+- `unify` (Haskell's `mconcat`) calls `fold` on a `Monoid` starting with its `unit` (Haskell's `mempty`) and using `combine` (Haskell's `<>`) at each step.
+- `Sum` uses `+` as `combine` and `0`* as `unit`, so it acts like addition.
+In the end, we get to add a list (woohoo, so impressive), but in a clearly modular way that works as a drop-in—better, _generic_—way to compute things like it.
+
+*Actually, `0_u8.into()`, but always some kind of zero.
+
 ## Use
 
 Just write a `monad! { ...` and you get all its superclasses like `Functor` for free, plus property-based tests of the monad laws:

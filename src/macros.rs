@@ -75,7 +75,7 @@ pub use functor;
 /// ```
 #[macro_export]
 macro_rules! monad {
-    ($name:ident<A$(: $a_bound:path $(, $a_bounds:path)*)? $(, $($g_ty:ident $(: $g_bound:path $(, $g_bounds:path)*)?),+)?>: fn bind($self:ident, $f:ident) $bind:block fn consume($a:ident) $consume:block) => {
+    ($name:ident<A$(: $a_bound:tt $(+ $a_bounds:tt)*)? $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn bind($self:ident, $f:ident) $bind:block fn consume($a:ident) $consume:block) => {
         paste! {
             $crate::prelude::functor! {
                 $name<A$(: $a_bound $(, $a_bounds)*)? $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
