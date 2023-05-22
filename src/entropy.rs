@@ -22,7 +22,7 @@ pub fn hash_consume<M: Monad<u64, Monad<u64> = M>, H: core::hash::Hash>(h: H) ->
 /// Reverses bits.
 #[inline]
 #[must_use]
-pub fn reverse(a: u64) -> u64 {
+pub const fn reverse(a: u64) -> u64 {
     a.reverse_bits()
 }
 
