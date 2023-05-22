@@ -2,12 +2,6 @@
 
 Haskell-style monads with Rust syntax.
 
-## Syntax
-
-Rust requires `>>=` to be self-modifying, so we use `>>` instead of `>>=` and `consume` instead of `return` (keyword).
-For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x | f | g | ...`.
-At the moment, Haskell's monadic `>>` seems unnecessary in an eager language like Rust, but I could easily be overlooking something!
-
 ## All-in-one example
 
 Monads, monoids, functors, & folds in one statement:
@@ -19,13 +13,18 @@ assert_eq!(
 );
 ```
 It's a bit of a contrived example, but here's what's going on:
-- `List` is a `Monad`. `list!` calls `consume` (Haskell's `return`) on each element (theoretically, but elided in the actual implementation) and infers the `u8` type for the whole list.
-- `|` is a synonym for `fmap` (chosen to look like a Shell pipe). On each element, we "call" `Sum`, the name of a one-element tuple-struct that's also a `Monoid`.
-- `unify` (Haskell's `mconcat`) calls `fold` on a `Monoid` starting with its `unit` (Haskell's `mempty`) and using `combine` (Haskell's `<>`) at each step.
-- `Sum` uses `+` as `combine` and `0`* as `unit`, so it acts like addition.
-In the end, we get to add a list (woohoo, so impressive), but in a clearly modular way that works as a drop-in—better, _generic_—way to compute things like it.
+- `List` is a `Monad`; `list!` is syntactic sugar. It automatically infers the `u8` type for each element (all the way up to `Sum(15)`: no need to write `15_u8`).
+- `|` is a synonym for `fmap` and `Sum` is a tuple-struct used as a function (e.g. `|x| Sum(x)`, eta-reduced).
+- `unify` calls `fold` on a `Monoid` in the way you'd think: start with `unit` (here, 0), then call `combine` (here, `+`) at each step. All this is inferred at compile time from `Sum`'s `Monoid` implementation.
+In the end, we get to add a list (woohoo, so impressive), but in a clearly modular way that works as a drop-in (potentially _generic_) pattern to compute anything like it.
 
 *Actually, `0_u8.into()`, but always some kind of zero.
+
+## Syntax
+
+Rust requires `>>=` to be self-modifying, so we use `>>` instead of `>>=` and `consume` instead of `return` (keyword).
+For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x | f | g | ...`.
+At the moment, Haskell's monadic `>>` seems unnecessary in an eager language like Rust, but I could easily be overlooking something!
 
 ## Use
 
