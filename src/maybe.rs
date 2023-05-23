@@ -69,7 +69,7 @@ impl<A> From<Option<A>> for Maybe<A> {
 type Residual = Maybe<core::convert::Infallible>;
 
 #[cfg(feature = "nightly")]
-impl<A> core::ops::Try for Maybe<A> {
+impl<A: Clone> core::ops::Try for Maybe<A> {
     type Output = A;
     type Residual = Residual;
     #[inline]
@@ -86,7 +86,7 @@ impl<A> core::ops::Try for Maybe<A> {
 }
 
 #[cfg(feature = "nightly")]
-impl<A> core::ops::FromResidual<Residual> for Maybe<A> {
+impl<A: Clone> core::ops::FromResidual<Residual> for Maybe<A> {
     #[inline]
     #[track_caller]
     fn from_residual(r: Residual) -> Self {

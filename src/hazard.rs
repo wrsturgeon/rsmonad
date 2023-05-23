@@ -33,7 +33,7 @@ type DefaultErr = ();
 /// # }
 /// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, QuickCheck)]
-pub enum Hazard<A, E: Clone = DefaultErr> {
+pub enum Hazard<A: Clone, E: Clone = DefaultErr> {
     /// Failure with information. Invoking `>>` will immediately return this failure as well.
     Failure(E),
     /// A value that hasn't failed (yet). Invoking `>>` on some function `f` will call `f` with that value as its argument.
@@ -58,18 +58,18 @@ monad! {
 
 /// Convenience (D.R.Y.).
 #[cfg(feature = "nightly")]
-type Residual = Hazard<core::convert::Infallible>;
+type Residual<E> = Hazard<core::convert::Infallible, E>;
 
 #[cfg(feature = "nightly")]
-impl<A> core::ops::Try for Hazard<A> {
+impl<A: Clone, E: Clone> core::ops::Try for Hazard<A, E> {
     type Output = A;
-    type Residual = Residual;
+    type Residual = Residual<E>;
     #[inline]
     fn from_output(a: A) -> Self {
         consume(a)
     }
     #[inline]
-    fn branch(self) -> core::ops::ControlFlow<Residual, A> {
+    fn branch(self) -> core::ops::ControlFlow<Residual<E>, A> {
         match self {
             Success(a) => core::ops::ControlFlow::Continue(a),
             Failure(s) => core::ops::ControlFlow::Break(Failure(s)),
@@ -78,10 +78,10 @@ impl<A> core::ops::Try for Hazard<A> {
 }
 
 #[cfg(feature = "nightly")]
-impl<A> core::ops::FromResidual<Residual> for Hazard<A> {
+impl<A: Clone, E: Clone> core::ops::FromResidual<Residual<E>> for Hazard<A, E> {
     #[inline]
     #[track_caller]
-    fn from_residual(r: Residual) -> Self {
+    fn from_residual(r: Residual<E>) -> Self {
         match r {
             Failure(s) => Failure(s),
             // SAFETY:
