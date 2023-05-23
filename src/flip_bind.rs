@@ -4,13 +4,13 @@
 use crate::Monad;
 
 trait FlipBind<M: Monad<A>, A, B> {
-    fn flip_bind<F: Fn(A) -> Self>(lhs: M, rhs: F) -> M::Constructor<B>;
+    fn flip_bind<F: FnOnce(A) -> Self>(lhs: M, rhs: F) -> M::Constructor<B>;
 }
 
 pub struct Flip<B>(pub core::marker::PhantomData<B>);
 
 impl<B> Flip<B> {
-    fn flip_bind<F: Fn(A) -> R, R: FlipBind<M, A, B>, M: Monad<A>, A>(
+    fn flip_bind<F: FnOnce(A) -> R, R: FlipBind<M, A, B>, M: Monad<A>, A>(
         lhs: M,
         rhs: F,
     ) -> M::Constructor<B> {
@@ -22,7 +22,7 @@ impl<M: Monad<A>, A, B> FlipBind<M, A, B> for ()
 where
     M::Constructor<B>: Default,
 {
-    fn flip_bind<F: Fn(A) -> Self>(lhs: M, rhs: F) -> M::Constructor<B> {
+    fn flip_bind<F: FnOnce(A) -> Self>(lhs: M, rhs: F) -> M::Constructor<B> {
         lhs.bind(move |x| {
             rhs(x);
             Default::default()
@@ -31,7 +31,7 @@ where
 }
 
 impl<M: Monad<A>, A, B> FlipBind<M, A, B> for M::Constructor<B> {
-    fn flip_bind<F: Fn(A) -> Self>(lhs: M, rhs: F) -> M::Constructor<B> {
+    fn flip_bind<F: FnOnce(A) -> Self>(lhs: M, rhs: F) -> M::Constructor<B> {
         lhs.bind(rhs)
     }
 }

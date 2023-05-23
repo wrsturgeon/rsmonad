@@ -29,6 +29,6 @@ pub const fn reverse(a: u64) -> u64 {
 /// Reverses bits then consumes into a monad.
 #[inline]
 #[must_use]
-pub fn reverse_consume<A: Applicative<u64>>(a: u64) -> A {
+pub fn reverse_consume<A: Applicative<u64, Applicative<u64> = A>>(a: u64) -> A {
     consume(reverse(a))
 }

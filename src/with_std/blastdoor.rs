@@ -1,7 +1,7 @@
 //! `BlastDoor` monad.
 
 use crate::prelude::*;
-use core::panic::{RefUnwindSafe, UnwindSafe};
+use core::panic::UnwindSafe;
 
 /// Encodes the possibility of panicking.
 /// # Use
@@ -35,7 +35,7 @@ pub use BlastDoor::{Kaboom, Phew};
 impl<A: UnwindSafe> UnwindMonad<A> for BlastDoor<A> {
     type Constructor<B: UnwindSafe> = BlastDoor<B>;
     #[inline(always)]
-    fn bind<B: UnwindSafe, F: Fn(A) -> BlastDoor<B> + RefUnwindSafe>(
+    fn bind<B: UnwindSafe, F: FnOnce(A) -> BlastDoor<B> + UnwindSafe>(
         self,
         f: F,
     ) -> Self::Constructor<B> {
@@ -51,7 +51,7 @@ impl<A: UnwindSafe> UnwindMonad<A> for BlastDoor<A> {
     }
 }
 
-impl<A: UnwindSafe, B: UnwindSafe, F: Fn(A) -> BlastDoor<B> + RefUnwindSafe> core::ops::Shr<F>
+impl<A: UnwindSafe, B: UnwindSafe, F: FnOnce(A) -> BlastDoor<B> + UnwindSafe> core::ops::Shr<F>
     for BlastDoor<A>
 {
     type Output = BlastDoor<B>;
@@ -63,7 +63,7 @@ impl<A: UnwindSafe, B: UnwindSafe, F: Fn(A) -> BlastDoor<B> + RefUnwindSafe> cor
 
 // TODO: if specialization or negative traits ever get implemented
 /*
-impl<A: UnwindSafe, F: Fn(A) -> () + RefUnwindSafe> core::ops::Shr<F> for BlastDoor<A> {
+impl<A: UnwindSafe, F: FnOnce(A) -> () + RefUnwindSafe> core::ops::Shr<F> for BlastDoor<A> {
     type Output = BlastDoor<()>;
     #[inline(always)]
     fn shr(self, rhs: F) -> Self::Output {

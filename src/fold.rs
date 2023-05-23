@@ -12,19 +12,19 @@ where
     type Item;
     /// Takes an initial value and uses `f` to combine it with each element in the list from right to left.
     #[inline]
-    fn foldr<B, F: Fn(<Self as Fold>::Item, B) -> B>(self, f: F, b: B) -> B {
+    fn foldr<B, F: FnOnce(<Self as Fold>::Item, B) -> B + Clone>(self, f: F, b: B) -> B {
         let mut acc = b;
         for a in self.into_iter().rev() {
-            acc = f(a, acc);
+            acc = f.clone()(a, acc);
         }
         acc
     }
     /// Takes an initial value and uses `f` to combine it with each element in the list from right to left.
     #[inline]
-    fn foldl<B, F: Fn(B, <Self as Fold>::Item) -> B>(self, f: F, b: B) -> B {
+    fn foldl<B, F: FnOnce(B, <Self as Fold>::Item) -> B + Clone>(self, f: F, b: B) -> B {
         let mut acc = b;
         for a in self {
-            acc = f(acc, a);
+            acc = f.clone()(acc, a);
         }
         acc
     }

@@ -33,7 +33,7 @@ type DefaultErr = ();
 /// # }
 /// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, QuickCheck)]
-pub enum Hazard<A, E = DefaultErr> {
+pub enum Hazard<A, E: Clone = DefaultErr> {
     /// Failure with information. Invoking `>>` will immediately return this failure as well.
     Failure(E),
     /// A value that hasn't failed (yet). Invoking `>>` on some function `f` will call `f` with that value as its argument.
@@ -42,10 +42,10 @@ pub enum Hazard<A, E = DefaultErr> {
 pub use Hazard::{Failure, Success};
 
 monad! {
-    Hazard<A, E>:
+    Hazard<A, E: Clone>:
 
-    fn consume(a) {
-        Success(a)
+    fn consume(b) {
+        Success(b)
     }
 
     fn bind(self, f) {

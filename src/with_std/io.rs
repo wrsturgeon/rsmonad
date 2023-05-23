@@ -27,8 +27,8 @@ pub struct Io<A>(A);
 monad! {
     Io<A>:
 
-    fn consume(a) {
-        Self(a)
+    fn consume(b) {
+        Io(b)
     }
 
     fn bind(self, f) {
@@ -39,11 +39,11 @@ monad! {
 /// Reads a single line from `stdin`.
 #[must_use]
 #[inline(always)]
-pub fn get_line_stdin() -> Hazard<Io<String>, std::io::Error> {
+pub fn get_line_stdin() -> Hazard<Io<String>, String> {
     let mut s = String::new();
     match std::io::stdin().read_line(&mut s) {
         Ok(_) => Success(consume(s)),
-        Err(e) => Failure(e),
+        Err(e) => Failure(e.to_string()),
     }
 }
 

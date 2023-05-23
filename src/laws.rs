@@ -30,7 +30,7 @@ pub mod monad {
         A: Clone,
         B,
         MA: Monad<A> + core::ops::Shr<&'static F, Output = MA::Monad<B>>,
-        F: Fn(A) -> MA::Monad<B>,
+        F: FnOnce(A) -> MA::Monad<B>,
     >(
         a: A,
         f: &'static F,
@@ -59,8 +59,8 @@ pub mod monad {
             + Clone
             + core::ops::Shr<&'static F, Output = M::Monad<B>>
             + core::ops::Shr<fn(A) -> M::Monad<C>, Output = M::Monad<C>>,
-        F: Fn(A) -> M::Monad<B>,
-        G: Fn(B) -> M::Monad<C>,
+        F: FnOnce(A) -> M::Monad<B>,
+        G: FnOnce(B) -> M::Monad<C>,
     >(
         m: M,
         f: &'static F,
@@ -90,7 +90,7 @@ pub mod functor {
 
     /// Tests that `fmap`ping two functions separately is equivalent to `fmap`ping their composition.
     #[inline]
-    pub fn composition<A, B, C, FA: Functor<A> + Clone, G: Fn(A) -> B, F: Fn(B) -> C>(
+    pub fn composition<A, B, C, FA: Functor<A> + Clone, G: FnOnce(A) -> B, F: FnOnce(B) -> C>(
         fa: FA,
         f: F,
         g: G,

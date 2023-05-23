@@ -9,16 +9,16 @@ use crate::prelude::*;
 /// (>>)   :: m a ->       m b  -> m b
 /// return :: a -> m a
 /// ```
-pub trait Monad<A>: Applicative<A> {
-    // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: Fn(A) -> MB> core::ops::Shr<F>`
+pub trait Monad<A: Clone>: Applicative<A> {
+    // TODO: once for<T> lands, use it to restrict `Monad` to `for<F: FnOnce(A) -> MB> core::ops::Shr<F>`
 
     /// Fucking pain in the ass redundancy. This has to be in this trait to avoid potential spooky action at a distance e.g. by redefining a separate Hkt later.
-    type Monad<B>: Monad<B, Monad<A> = Self>;
+    type Monad<B: Clone>: Monad<B, Monad<A> = Self>;
     /// Mutate internal state with some function.
-    fn bind<B, F: Fn(A) -> Self::Monad<B>>(self, f: F) -> Self::Monad<B>;
+    fn bind<B: Clone, F: FnOnce(A) -> Self::Monad<B> + Clone>(self, f: F) -> Self::Monad<B>;
     /// Flatten a nested monad into a single-layer monad.
     #[inline(always)]
-    fn join<Flat, MFlat: Monad<Flat, Monad<MFlat> = Self>>(self) -> MFlat
+    fn join<Flat: Clone, MFlat: Monad<Flat, Monad<MFlat> = Self> + Clone>(self) -> MFlat
     where
         Self: Sized + Monad<MFlat, Monad<Flat> = MFlat>,
     {
@@ -28,7 +28,10 @@ pub trait Monad<A>: Applicative<A> {
 
 /// Mutate internal state with some function.
 #[inline(always)]
-pub fn bind<A, B, MA: Monad<A>, F: Fn(A) -> MA::Monad<B>>(ma: MA, f: F) -> MA::Monad<B> {
+pub fn bind<A: Clone, B: Clone, MA: Monad<A>, F: FnOnce(A) -> MA::Monad<B> + Clone>(
+    ma: MA,
+    f: F,
+) -> MA::Monad<B> {
     ma.bind(f)
 }
 
@@ -61,6 +64,8 @@ pub fn bind<A, B, MA: Monad<A>, F: Fn(A) -> MA::Monad<B>>(ma: MA, f: F) -> MA::M
 /// -- and the middle argument is clearly id
 /// ```
 #[inline(always)]
-pub fn join<MMA: Monad<MA, Monad<A> = MA>, MA: Monad<A, Monad<MA> = MMA>, A>(mma: MMA) -> MA {
+pub fn join<MMA: Monad<MA, Monad<A> = MA>, MA: Monad<A, Monad<MA> = MMA> + Clone, A: Clone>(
+    mma: MMA,
+) -> MA {
     mma.join()
 }

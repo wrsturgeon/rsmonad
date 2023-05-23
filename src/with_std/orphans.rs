@@ -6,35 +6,40 @@ use crate::prelude::*;
 
 //////////////// Vec
 
-impl<A> Functor<A> for Vec<A> {
-    type Functor<B> = Vec<B>;
+impl<A: Clone> Functor<A> for Vec<A> {
+    type Functor<B: Clone> = Vec<B>;
     #[inline(always)]
-    fn fmap<B, F: Fn(A) -> B>(self, f: F) -> Self::Functor<B> {
-        self.into_iter().map(f).collect()
+    fn fmap<B: Clone, F: FnOnce(A) -> B + Clone>(self, f: F) -> Self::Functor<B> {
+        let mut v = vec![];
+        v.reserve(self.len());
+        for s in self {
+            v.push(f.clone()(s))
+        }
+        v
     }
 }
 
-impl<A> Applicative<A> for Vec<A> {
-    type Applicative<B> = Vec<B>;
+impl<A: Clone> Applicative<A> for Vec<A> {
+    type Applicative<B: Clone> = Vec<B>;
     #[inline(always)]
-    fn consume(a: A) -> Self {
+    fn consume(a: A) -> Vec<A> {
         vec![a]
     }
-    fn tie<B, C>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
+    fn tie<B: Clone, C: Clone>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
     where
-        A: Fn(B) -> C,
+        A: FnOnce(B) -> C,
     {
         self.bind(move |f| ab.bind(move |b| consume(f(b))))
     }
 }
 
-impl<A> Monad<A> for Vec<A> {
-    type Monad<B> = Vec<B>;
+impl<A: Clone> Monad<A> for Vec<A> {
+    type Monad<B: Clone> = Vec<B>;
     #[inline(always)]
-    fn bind<B, F: Fn(A) -> Self::Monad<B>>(self, f: F) -> Self::Monad<B> {
+    fn bind<B: Clone, F: FnOnce(A) -> Self::Monad<B> + Clone>(self, f: F) -> Self::Monad<B> {
         let mut v = Vec::with_capacity(self.len());
         for a in self {
-            v.append(&mut f(a));
+            v.append(&mut f.clone()(a));
         }
         v
     }

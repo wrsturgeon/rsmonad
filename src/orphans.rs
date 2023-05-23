@@ -6,24 +6,24 @@ use crate::prelude::*;
 
 //////////////// Option
 
-impl<A> Functor<A> for Option<A> {
-    type Functor<B> = Option<B>;
+impl<A: Clone> Functor<A> for Option<A> {
+    type Functor<B: Clone> = Option<B>;
     #[inline(always)]
-    fn fmap<B, F: Fn(A) -> B>(self, f: F) -> Self::Functor<B> {
+    fn fmap<B: Clone, F: FnOnce(A) -> B>(self, f: F) -> Self::Functor<B> {
         self.map(f)
     }
 }
 
-impl<A> Applicative<A> for Option<A> {
-    type Applicative<B> = Option<B>;
+impl<A: Clone> Applicative<A> for Option<A> {
+    type Applicative<B: Clone> = Option<B>;
     #[inline(always)]
-    fn consume(a: A) -> Self {
+    fn consume(a: A) -> Option<A> {
         Some(a)
     }
     #[inline(always)]
-    fn tie<B, C>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
+    fn tie<B: Clone, C: Clone>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
     where
-        A: Fn(B) -> C,
+        A: FnOnce(B) -> C,
     {
         match (self, ab) {
             (Some(f), Some(b)) => Some(f(b)),
@@ -32,10 +32,10 @@ impl<A> Applicative<A> for Option<A> {
     }
 }
 
-impl<A> Monad<A> for Option<A> {
-    type Monad<B> = Option<B>;
+impl<A: Clone> Monad<A> for Option<A> {
+    type Monad<B: Clone> = Option<B>;
     #[inline(always)]
-    fn bind<B, F: Fn(A) -> Self::Monad<B>>(self, f: F) -> Self::Monad<B> {
+    fn bind<B: Clone, F: FnOnce(A) -> Self::Monad<B> + Clone>(self, f: F) -> Self::Monad<B> {
         self.and_then(f)
     }
 }
