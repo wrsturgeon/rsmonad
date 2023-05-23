@@ -37,8 +37,10 @@ pub struct List<A>(Vec<A>);
 /// ```
 #[macro_export]
 macro_rules! list {
-    ($($tt:tt)*) => {
-        <$crate::prelude::List<_> as From<Vec<_>>>::from(vec![$($tt)*])
+    ($a:literal..$b:expr)=>{($a..$b).collect::<$crate::prelude::List<_>>()};
+    ({$a:expr}..$b:expr)=>{($a..$b).collect::<$crate::prelude::List<_>>()};
+    ($($e:expr),*) => {
+        <$crate::prelude::List<_> as From<Vec<_>>>::from(vec![$($e),*])
     };
 }
 pub use list;
@@ -47,8 +49,8 @@ pub use list;
 #[allow(clippy::module_name_repetitions)]
 #[macro_export]
 macro_rules! lazy_list {
-    ($($e:expr),+) => {
-        <$crate::prelude::List<_> as From<Vec<_>>>::from(vec![$(|| $e),+])
+    ($($e:expr),*) => {
+        <$crate::prelude::List<_> as From<Vec<_>>>::from(vec![$(|| $e),*])
     };
 }
 #[allow(clippy::module_name_repetitions)]
@@ -171,6 +173,13 @@ impl<A> IntoIterator for List<A> {
     #[inline(always)]
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<A> FromIterator<A> for List<A> {
+    #[inline(always)]
+    fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
+        Self(Vec::from_iter(iter))
     }
 }
 

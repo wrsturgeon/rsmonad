@@ -170,6 +170,7 @@ macro_rules! just_alternative {
 
                 #[allow(clippy::missing_trait_methods)]
                 impl<A: Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Alternative<A> for $name<A $(, $($g_ty),+)?> {
+                    type Alternative<B: Clone> = $name<B $(, $($g_ty),+)?>;
                     #[inline(always)] #[must_use] fn empty() -> Self $empty
                     #[inline(always)] #[must_use] fn either<F: FnOnce() -> Self>(mut $self, mut $make_other: F) -> Self $either
                 }

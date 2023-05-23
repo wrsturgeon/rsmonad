@@ -36,6 +36,19 @@ impl<A: Clone> Applicative<A> for Vec<A> {
 }
 test_applicative!(Vec<u64>);
 
+impl<A: Clone> Alternative<A> for Vec<A> {
+    type Alternative<B: Clone> = Vec<B>;
+    #[inline(always)]
+    fn empty() -> Self {
+        vec![]
+    }
+    #[inline(always)]
+    fn either<F: FnOnce() -> Self>(mut self, make_other: F) -> Self {
+        self.append(&mut make_other());
+        self
+    }
+}
+
 impl<A: Clone> Monad<A> for Vec<A> {
     type Monad<B: Clone> = Vec<B>;
     #[inline(always)]

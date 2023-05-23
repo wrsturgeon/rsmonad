@@ -32,6 +32,7 @@ impl<A: Clone> Applicative<A> for Option<A> {
 test_applicative!(Option<u64>);
 
 impl<A: Clone> Alternative<A> for Option<A> {
+    type Alternative<B: Clone> = Option<B>;
     #[inline(always)]
     fn empty() -> Self {
         None
@@ -109,6 +110,7 @@ impl<A: Clone> Applicative<A> for core::task::Poll<A> {
 }
 
 impl<A: Clone> Alternative<A> for core::task::Poll<A> {
+    type Alternative<B: Clone> = core::task::Poll<B>;
     #[inline(always)]
     fn empty() -> Self {
         Self::Pending

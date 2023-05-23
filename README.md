@@ -23,6 +23,28 @@ assert_eq!(
 );
 ```
 
+Desugared `do`-notation:
+```rust
+assert_eq!(
+    list![1..20]
+        >> |x| {
+            list![{ x }..20]
+                >> |y| {
+                    list![{ y }..20]
+                        >> |z| guard::<List<_>>(is_triple(x, y, z)) >> |_| list![(x, y, z)]
+                }
+        },
+    list![
+        // Including "non-primitive" (i.e. multiples of smaller) triples
+        (3, 4, 5),
+        (5, 12, 13),
+        (6, 8, 10),
+        (8, 15, 17),
+        (9, 12, 15)
+    ]
+);
+```
+
 The logic of Haskell lists with the speed of Rust vectors:
 ```rust
 use rsmonad::prelude::*;
