@@ -1,6 +1,6 @@
 [package]
 name = "rsmonad"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Will Sturgeon <willstrgn@gmail.com>"]
 edition = "2021"
 description = "Haskell-style monads for idiomatic Rust."
