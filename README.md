@@ -31,7 +31,7 @@ assert_eq!(
             list![{ x }..20]
                 >> |y| {
                     list![{ y }..20]
-                        >> |z| guard::<List<_>>(is_triple(x, y, z)) >> |_| list![(x, y, z)]
+                        >> |z| guard::<List<_>>(x * x + y * y == z * z) >> |_| list![(x, y, z)]
                 }
         },
     list![

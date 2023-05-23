@@ -63,11 +63,6 @@ fn is_power_of_two() {
     );
 }
 
-const fn is_triple(x: isize, y: isize, z: isize) -> bool {
-    #![allow(clippy::integer_arithmetic)]
-    x * x + y * y == z * z
-}
-
 #[test]
 fn pythagoraean_triples() {
     assert_eq!(
@@ -76,7 +71,7 @@ fn pythagoraean_triples() {
                 list![{ x }..20]
                     >> |y| {
                         list![{ y }..20]
-                            >> |z| guard::<List<()>>(is_triple(x, y, z)) >> |_| list![(x, y, z)]
+                            >> |z| guard::<List<()>>(x * x + y * y == z * z) >> |_| list![(x, y, z)]
                     }
             },
         list![
