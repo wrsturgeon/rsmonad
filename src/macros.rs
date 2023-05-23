@@ -36,7 +36,7 @@ pub use test_functor;
 /// }
 ///
 /// # fn main() {
-/// assert_eq!(Pointless(4) | u8::is_power_of_two, Pointless(true));
+/// assert_eq!(Pointless(4) % u8::is_power_of_two, Pointless(true));
 /// # }
 /// ```
 #[macro_export]
@@ -53,9 +53,9 @@ macro_rules! functor {
                     #[inline(always)] #[must_use] fn fmap<B: Clone, F: FnOnce(A) -> B + Clone>(mut $self, mut $f: F) -> $name<B $(, $($g_ty),+)?> $fmap
                 }
 
-                impl<A: Clone, B: Clone, F: FnOnce(A) -> B + Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitOr<F> for $name<A $(, $($g_ty),+)?> {
+                impl<A: Clone, B: Clone, F: FnOnce(A) -> B + Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Rem<F> for $name<A $(, $($g_ty),+)?> {
                     type Output = $name<B $(, $($g_ty),+)?>;
-                    #[inline(always)] #[must_use] fn bitor(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.fmap(f) }
+                    #[inline(always)] #[must_use] fn rem(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.fmap(f) }
                 }
 
                 $crate::test_functor!($name<A>);
@@ -187,7 +187,7 @@ pub use test_monad;
 /// assert_eq!(Pointless(4) >> pointless_pow2, Pointless(true));
 ///
 /// // Functor
-/// assert_eq!(Pointless(4) | u8::is_power_of_two, Pointless(true));
+/// assert_eq!(Pointless(4) % u8::is_power_of_two, Pointless(true));
 /// # }
 /// ```
 #[macro_export]

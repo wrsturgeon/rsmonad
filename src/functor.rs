@@ -5,7 +5,7 @@
 /// # #[cfg(feature = "std")] {
 /// use rsmonad::prelude::*;
 /// let li = list![1, 2, 3, 4, 5];
-/// assert_eq!(li | u8::is_power_of_two, list![true, true, false, true, false]);
+/// assert_eq!(li % u8::is_power_of_two, list![true, true, false, true, false]);
 /// # }
 /// ```
 pub trait Functor<A: Clone> {

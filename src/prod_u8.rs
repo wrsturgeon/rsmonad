@@ -8,7 +8,7 @@ use crate::prelude::*;
 /// ```rust
 /// use rsmonad::prelude::*;
 /// assert_eq!(
-///     (list![1, 2, 3, 4, 5] | ProductU8).unify(),
+///     (list![1, 2, 3, 4, 5] % ProductU8).unify(),
 ///     ProductU8(120)
 /// );
 /// ```

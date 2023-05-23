@@ -8,13 +8,13 @@ Monads, monoids, functors, & folds in one statement:
 ```rust
 use rsmonad::prelude::*;
 assert_eq!(
-    (list![1_u8, 2, 3, 4, 5] | Sum).unify(),
+    (list![1_u8, 2, 3, 4, 5] % Sum).unify(),
     Sum(15)
 );
 ```
 It's a bit of a contrived example, but here's what's going on:
 - `List` is a `Monad`; `list!` is syntactic sugar. It automatically infers the `u8` type for each element (all the way up to `Sum(15)`: no need to write `15_u8`).
-- `|` is a synonym for `fmap`.
+- `%` is a synonym for `fmap`.
 - `Sum` is a tuple-struct used as a function (e.g. `|x| Sum(x)`, but eta-reduced).
 - `unify` calls `fold` on a `Monoid` in the way you'd think: start with `unit` (here, 0), then call `combine` (here, `+`) at each step. All this is inferred at compile time from `Sum`'s `Monoid` implementation.
 In the end, we get to add a list (woohoo, so impressive), but in a clearly modular way that works as a drop-in (potentially _generic_) pattern to compute anything like it.
@@ -22,7 +22,7 @@ In the end, we get to add a list (woohoo, so impressive), but in a clearly modul
 ## Syntax
 
 Rust requires `>>=` to be self-modifying, so we use `>>` instead of `>>=` and `consume` instead of `return` (keyword).
-For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x | f | g | ...`.
+For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x % f % g % ...`.
 At the moment, Haskell's monadic `>>` seems unnecessary in an eager language like Rust, but I could easily be overlooking something!
 
 ## Use
