@@ -72,5 +72,5 @@ mod orphans;
 #[cfg(feature = "std")]
 mod with_std;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod gallery;
