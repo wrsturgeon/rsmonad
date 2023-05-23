@@ -13,25 +13,28 @@ impl<A: Clone> Functor<A> for Vec<A> {
         let mut v = vec![];
         v.reserve(self.len());
         for s in self {
-            v.push(f.clone()(s))
+            v.push(f.clone()(s));
         }
         v
     }
 }
+test_functor!(Vec<A>);
 
 impl<A: Clone> Applicative<A> for Vec<A> {
     type Applicative<B: Clone> = Vec<B>;
     #[inline(always)]
-    fn consume(a: A) -> Vec<A> {
+    fn consume(a: A) -> Self {
         vec![a]
     }
-    fn tie<B: Clone, C: Clone>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
-    where
-        A: FnOnce(B) -> C,
-    {
-        self.bind(move |f| ab.bind(move |b| consume(f(b))))
+    #[inline(always)]
+    fn tie<F: FnOnce(A) -> B + Clone, B: Clone>(
+        self,
+        af: Self::Applicative<F>,
+    ) -> Self::Applicative<B> {
+        self.bind(move |a| af.bind(move |f| consume(f(a))))
     }
 }
+test_applicative!(Vec<A>);
 
 impl<A: Clone> Monad<A> for Vec<A> {
     type Monad<B: Clone> = Vec<B>;
@@ -44,6 +47,7 @@ impl<A: Clone> Monad<A> for Vec<A> {
         v
     }
 }
+test_monad!(Vec<A>);
 
 impl<A> Fold for Vec<A> {
     type Item = A;
@@ -60,3 +64,4 @@ impl<A> Monoid for Vec<A> {
         self
     }
 }
+test_monoid!(Vec<u64>);

@@ -7,13 +7,13 @@ pub use paste::paste;
 macro_rules! test_functor {
     ($name:ident<A>) => {
         quickcheck::quickcheck! {
-            fn prop_identity(fa: $name<u64>) -> bool {
-                fa.clone() == (fa | core::convert::identity)
+            fn prop_functor_identity(fa: $name<u64>) -> bool {
+                fa.clone() == fa.fmap(core::convert::identity)
             }
-            fn prop_composition(fa: $name<u64>) -> bool {
+            fn prop_functor_composition(fa: $name<u64>) -> bool {
                 use $crate::entropy::hash as g;
                 use $crate::entropy::reverse as h;
-                (fa.clone() | (move |a| g(h(a)))) == (fa | h | g)
+                fa.clone().fmap(move |a| g(h(a))) == fa.fmap(h).fmap(g)
             }
         }
     };
@@ -58,7 +58,7 @@ macro_rules! functor {
                     #[inline(always)] #[must_use] fn bitor(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.fmap(f) }
                 }
 
-                $crate::test_functor! { $name<A> }
+                $crate::test_functor!($name<A>);
             }
         }
     };
@@ -70,16 +70,16 @@ pub use functor;
 macro_rules! test_applicative {
     ($name:ident<A>) => {
         quickcheck::quickcheck! {
-            fn prop_fmap(ab: $name<u64>) -> bool {
+            fn prop_applicative_fmap(ab: $name<u64>) -> bool {
                 use $crate::entropy::hash as f;
-                (ab.clone() | f) == (ab * consume(f))
+                ab.clone().fmap(f) == ab.tie(consume(f))
             }
-            fn prop_identity(ab: $name<u64>) -> bool {
-                ab.clone() == (ab * consume(core::convert::identity))
+            fn prop_applicative_identity(ab: $name<u64>) -> bool {
+                ab.clone() == ab.tie(consume(core::convert::identity))
             }
-            fn prop_homomorphism(b: u64) -> bool {
+            fn prop_applicative_homomorphism(b: u64) -> bool {
                 use $crate::entropy::hash as f;
-                consume::<$name<_>, _>(f(b)) == (consume::<$name<_>, _>(b) * consume(f))
+                consume::<$name<_>, _>(f(b)) == consume::<$name<_>, _>(b).tie(consume(f))
             }
             /*
             fn prop_interchange(b: u64) -> bool {
@@ -105,13 +105,13 @@ pub use test_applicative;
 /// Implement `Applicative` (and its superclasses automatically) after a definition.
 #[macro_export]
 macro_rules! applicative {
-    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn consume($a:ident) $consume:block fn tie($self:ident, $ab:ident) $tie:block) => {
+    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn consume($a:ident) $consume:block fn tie($self:ident, $af:ident) $tie:block) => {
         paste! {
             $crate::prelude::functor! {
                 $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
 
                 fn fmap(self, f) {
-                    self * consume(f)
+                    self.tie(consume(f))
                 }
             }
 
@@ -123,15 +123,15 @@ macro_rules! applicative {
                 impl<A: Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Applicative<A> for $name<A $(, $($g_ty),+)?> {
                     type Applicative<B: Clone> = $name<B $(, $($g_ty),+)?>;
                     #[inline(always)] #[must_use] fn consume(mut $a: A) -> Self $consume
-                    #[inline(always)] #[must_use] fn tie<B: Clone, C: Clone>(mut $self, mut $ab: Self::Applicative<B>) -> Self::Applicative<C> where A: FnOnce(B) -> C + Clone $tie
+                    #[inline(always)] #[must_use] fn tie<F: FnOnce(A) -> B + Clone, B: Clone>(mut $self, mut $af: Self::Applicative<F>) -> Self::Applicative<B> $tie
                 }
 
                 impl<A: Clone, B: Clone, F: FnOnce(A) -> B + Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::Mul<$name<F $(, $($g_ty),+)?>> for $name<A $(, $($g_ty),+)?> {
                     type Output = $name<B $(, $($g_ty),+)?>;
-                    #[inline(always)] #[must_use] fn mul(mut self, mut af: $name<F $(, $($g_ty),+)?>) -> Self::Output { af.tie(self) }
+                    #[inline(always)] #[must_use] fn mul(mut self, mut af: $name<F $(, $($g_ty),+)?>) -> Self::Output { self.tie(af) }
                 }
 
-                $crate::test_applicative! { $name<A> }
+                $crate::test_applicative!($name<A>);
             }
         }
     };
@@ -143,19 +143,19 @@ pub use applicative;
 macro_rules! test_monad {
     ($name:ident<A>) => {
         quickcheck::quickcheck! {
-            fn prop_left_identity(a: u64) -> bool {
+            fn prop_monad_left_identity(a: u64) -> bool {
                 use $crate::entropy::hash_consume as f;
-                consume::<$name<u64>, _>(a).bind(f) == f(a)
+                core::cmp::PartialEq::<$name<u64>>::eq(&consume::<$name<u64>, _>(a).bind(f), &f(a))
             }
-            fn prop_right_identity(ma: $name<u64>) -> bool {
+            fn prop_monad_right_identity(ma: $name<u64>) -> bool {
                 #![allow(clippy::arithmetic_side_effects)]
-                ma.clone() == (ma >> consume)
+                ma.clone() == ma.bind(consume)
             }
-            fn prop_associativity(ma: $name<u64>) -> bool {
+            fn prop_monad_associativity(ma: $name<u64>) -> bool {
                 #![allow(clippy::arithmetic_side_effects)]
                 use $crate::entropy::hash_consume as g;
                 use $crate::entropy::reverse_consume as h;
-                ((ma.clone() >> g) >> h) == (ma.bind(move |a| { let ga: $name<_> = g(a); ga.bind(h) }))
+                ma.clone().bind(g).bind(h) == (ma.bind(move |a| { let ga: $name<_> = g(a); ga.bind(h) }))
             }
         }
     };
@@ -199,8 +199,8 @@ macro_rules! monad {
 
                 fn consume($a) $consume
 
-                fn tie(self, ab) {
-                    self.bind(move |f| ab.bind(move |b| consume(f(b))))
+                fn tie(self, af) {
+                    self.bind(move |a| af.bind(move |f| consume(f(a))))
                 }
             }
 
@@ -221,7 +221,7 @@ macro_rules! monad {
                     #[inline(always)] #[must_use] fn shr(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.bind(f) }
                 }
 
-                test_monad! { $name<A> }
+                test_monad!($name<A>);
             }
         }
     };
@@ -266,14 +266,14 @@ pub use fold;
 macro_rules! test_monoid {
     ($name:ty) => {
         quickcheck::quickcheck! {
-            fn prop_associativity(ma: $name, mb: $name, mc: $name) -> bool {
-                (ma.clone() + (mb.clone() + mc.clone())) == ((ma + mb) + mc)
+            fn prop_monoid_associativity(ma: $name, mb: $name, mc: $name) -> bool {
+                ma.clone().combine(mb.clone().combine(mc.clone())) == ma.combine(mb).combine(mc)
             }
-            fn prop_left_identity(ma: $name) -> bool {
-                ma.clone() == ma + unit()
+            fn prop_monoid_left_identity(ma: $name) -> bool {
+                ma.clone() == unit::<$name>().combine(ma)
             }
-            fn prop_right_identity(ma: $name) -> bool {
-                ma.clone() == ma + unit()
+            fn prop_monoid_right_identity(ma: $name) -> bool {
+                ma.clone() == ma.combine(unit())
             }
         }
     };
@@ -327,7 +327,7 @@ macro_rules! monoid {
                     #[inline(always)] #[must_use] fn add(mut self, mut other: Self) -> Self { self.combine(other) }
                 }
 
-                test_monoid! { $name$(<$($g_ty),+>)? }
+                test_monoid!($name$(<$($g_ty),+>)?);
             }
         }
     }

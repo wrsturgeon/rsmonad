@@ -9,9 +9,10 @@ pub trait Applicative<A: Clone>: Functor<A> {
     /// Construct an Applicative from a value.
     fn consume(a: A) -> Self;
     /// Apply a function wrapped in a functor to an argument wrapped in a functor.
-    fn tie<B: Clone, C: Clone>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
-    where
-        A: FnOnce(B) -> C;
+    fn tie<F: FnOnce(A) -> B + Clone, B: Clone>(
+        self,
+        af: Self::Applicative<F>,
+    ) -> Self::Applicative<B>;
 }
 
 /// Construct an Applicative from a value.
@@ -23,9 +24,9 @@ pub fn consume<Ap: Applicative<A, Applicative<A> = Ap>, A: Clone>(a: A) -> Ap {
 /// Apply a function wrapped in a functor to an argument wrapped in a functor.
 #[inline(always)]
 #[must_use]
-pub fn tie<Ap: Applicative<A>, A: FnOnce(B) -> C + Clone, B: Clone, C: Clone>(
+pub fn tie<Ap: Applicative<A>, A: Clone, F: FnOnce(A) -> B + Clone, B: Clone>(
     aa: Ap,
-    ab: Ap::Applicative<B>,
-) -> Ap::Applicative<C> {
-    aa.tie(ab)
+    af: Ap::Applicative<F>,
+) -> Ap::Applicative<B> {
+    aa.tie(af)
 }

@@ -13,24 +13,23 @@ impl<A: Clone> Functor<A> for Option<A> {
         self.map(f)
     }
 }
+test_functor!(Option<A>);
 
 impl<A: Clone> Applicative<A> for Option<A> {
     type Applicative<B: Clone> = Option<B>;
     #[inline(always)]
-    fn consume(a: A) -> Option<A> {
+    fn consume(a: A) -> Self {
         Some(a)
     }
     #[inline(always)]
-    fn tie<B: Clone, C: Clone>(self, ab: Self::Applicative<B>) -> Self::Applicative<C>
-    where
-        A: FnOnce(B) -> C,
-    {
-        match (self, ab) {
-            (Some(f), Some(b)) => Some(f(b)),
-            _ => None,
-        }
+    fn tie<F: FnOnce(A) -> B + Clone, B: Clone>(
+        self,
+        af: Self::Applicative<F>,
+    ) -> Self::Applicative<B> {
+        self.bind(move |a| af.bind(move |f| consume(f(a))))
     }
 }
+test_applicative!(Option<A>);
 
 impl<A: Clone> Monad<A> for Option<A> {
     type Monad<B: Clone> = Option<B>;
@@ -39,6 +38,7 @@ impl<A: Clone> Monad<A> for Option<A> {
         self.and_then(f)
     }
 }
+test_monad!(Option<A>);
 
 impl<A> Fold for Option<A> {
     type Item = A;
