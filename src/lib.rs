@@ -32,6 +32,7 @@ pub mod prelude {
     pub use quickcheck::quickcheck;
 
     pub use super::entropy::*;
+    pub use super::lazy::*;
     pub use super::macros::*;
 
     pub use super::alternative::*;
@@ -51,6 +52,7 @@ pub mod prelude {
 }
 
 mod entropy;
+mod lazy;
 mod macros;
 
 mod alternative;
@@ -69,3 +71,6 @@ mod orphans;
 
 #[cfg(feature = "std")]
 mod with_std;
+
+#[cfg(test)]
+mod gallery;

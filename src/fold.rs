@@ -36,19 +36,27 @@ where
     {
         Monoid::unify(self)
     }
-    /// Folds an Alternative. Starts with `empty` and combines with `either`.
+    /// Folds a collection of lazy Alternatives. Starts with `empty` and combines with `either`.
     #[inline(always)]
-    fn asum<A: Clone, AA: Alternative<A>>(self) -> AA
+    fn asum<AA: Alternative<A>, A: Clone>(self) -> AA
     where
         <Self as Fold>::Item: FnOnce() -> AA,
     {
         self.foldr(move |f, acc| acc.either(f), empty())
     }
+    /// Folds a collection of Alternatives. Starts with `empty` and combines with `either`.
+    #[inline(always)]
+    fn eager_asum<A: Clone>(self) -> <Self as Fold>::Item
+    where
+        <Self as Fold>::Item: Alternative<A>,
+    {
+        self.foldr(move |f, acc| acc.either(|| f), empty())
+    }
 }
 
 #[cfg(feature = "std")]
 #[test]
-fn test_list_asum() {
+fn test_list_lazy_asum() {
     assert_eq!(
         list![|| list![1_u8, 2, 3], || list![4], || list![5, 6]].asum(),
         list![1, 2, 3, 4, 5, 6]

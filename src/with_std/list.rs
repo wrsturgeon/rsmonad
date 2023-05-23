@@ -38,10 +38,21 @@ pub struct List<A>(Vec<A>);
 #[macro_export]
 macro_rules! list {
     ($($tt:tt)*) => {
-        <List<_> as From<Vec<_>>>::from(vec![$($tt)*])
+        <$crate::prelude::List<_> as From<Vec<_>>>::from(vec![$($tt)*])
     };
 }
 pub use list;
+
+/// Initialize an `rsmonad` List with each element a zero-argument closure.
+#[allow(clippy::module_name_repetitions)]
+#[macro_export]
+macro_rules! lazy_list {
+    ($($e:expr),+) => {
+        <$crate::prelude::List<_> as From<Vec<_>>>::from(vec![$(|| $e),+])
+    };
+}
+#[allow(clippy::module_name_repetitions)]
+pub use lazy_list;
 
 impl<A> From<Vec<A>> for List<A> {
     #[inline(always)]
