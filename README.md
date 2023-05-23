@@ -2,7 +2,7 @@
 
 Haskell-style monads with macro-free Rust syntax.
 
-## Types work without annotation:
+## Types work with zero annotations
 
 A fancy example (that compiles and runs as a test in `gallery.rs`):
 ```rust
@@ -78,9 +78,13 @@ assert_eq!(joined, list![0]);
 
 ## Syntactic sugar
 
-Rust requires `>>=` to be self-modifying, so we use `>>` instead of `>>=` and `consume` instead of `return` (keyword).
-For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x % f % g % ...`.
-At the moment, Haskell's monadic `>>` seems unnecessary in an eager language like Rust, but I could easily be overlooking something!
+- Rust requires `>>=` to be self-modifying, so we use `>>` instead. `return` (keyword) becomes `consume` and Haskell's `>>` becomes `&`.
+- Function-application order is standardized across the board to match `>>=` instead of `<$>`: it's `x.fmap(f)` to mean `f <$> x`.
+    - I think this makes it easier to read as a chain of computations, but I'm not dead-set on it, and the type system would work either way.
+- For functors, you can use `fmap(f, x)` or `x.fmap(f)`, or you can _pipe_ it: `x % f % g % ...`.
+- `Applicative` uses `*` instead of `<*>` (or the explicit method `tie`).
+- `Alternative` uses `|` instead of `<|>` (or the explicit method `either`).
+- Monoids use `+` instead of `<>`.
 
 ## Use
 
@@ -167,3 +171,6 @@ Disable default features:
 [dependencies]
 rsmonad = { version = "*", default-features = false }
 ```
+
+Note that this will also disable `List`,though this is probably what you want: we _can't_ know its length at compile time (that's the point of its `bind` implementation), so it requires a heap.
+An `alloc` feature is in the works for `#![no_std] extern crate alloc;` crates, but it's not finalized yet.
