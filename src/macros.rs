@@ -5,7 +5,7 @@ pub use paste::paste;
 /// Test the functor laws.
 #[macro_export]
 macro_rules! test_functor {
-    ($name:ident<A>) => {
+    ($name:ident<u64>) => {
         quickcheck::quickcheck! {
             fn prop_functor_identity(fa: $name<u64>) -> bool {
                 fa.clone() == fa.fmap(core::convert::identity)
@@ -58,7 +58,7 @@ macro_rules! functor {
                     #[inline(always)] #[must_use] fn rem(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.fmap(f) }
                 }
 
-                $crate::test_functor!($name<A>);
+                $crate::test_functor!($name<u64>);
             }
         }
     };
@@ -68,7 +68,7 @@ pub use functor;
 /// Test the Applicative laws.
 #[macro_export]
 macro_rules! test_applicative {
-    ($name:ident<A>) => {
+    ($name:ident<u64>) => {
         quickcheck::quickcheck! {
             fn prop_applicative_fmap(ab: $name<u64>) -> bool {
                 use $crate::entropy::hash as f;
@@ -131,17 +131,91 @@ macro_rules! applicative {
                     #[inline(always)] #[must_use] fn mul(mut self, mut af: $name<F $(, $($g_ty),+)?>) -> Self::Output { self.tie(af) }
                 }
 
-                $crate::test_applicative!($name<A>);
+                $crate::test_applicative!($name<u64>);
             }
         }
     };
 }
 pub use applicative;
 
+/// Test the Alternative laws.
+#[macro_export]
+macro_rules! test_alternative {
+    ($name:ident<u64>) => {
+        quickcheck::quickcheck! {
+            fn prop_monoid_associativity(ma: $name<u64>, mb: $name<u64>, mc: $name<u64>) -> bool {
+                ma.clone().either(|| mb.clone().either(|| mc.clone())) == ma.either(move || mb).either(move || mc)
+            }
+            fn prop_monoid_left_identity(ma: $name<u64>) -> bool {
+                ma.clone() == empty::<$name<u64>, _>().either(move || ma)
+            }
+            fn prop_monoid_right_identity(ma: $name<u64>) -> bool {
+                ma.clone() == ma.either(empty::<$name<u64>, _>)
+            }
+        }
+    };
+}
+pub use test_alternative;
+
+/// Implement ONLY `Alternative` (not its superclasses) after a definition.
+#[macro_export]
+macro_rules! just_alternative {
+    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn empty() $empty:block fn either($self:ident, $make_other:ident) $either:block) => {
+        paste! {
+            mod [<$name:snake _alternative_impl>] {
+                #![allow(unused_mut)]
+                use $crate::prelude::*;
+                #[allow(unused_imports)]
+                use super::*;
+
+                #[allow(clippy::missing_trait_methods)]
+                impl<A: Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> Alternative<A> for $name<A $(, $($g_ty),+)?> {
+                    #[inline(always)] #[must_use] fn empty() -> Self $empty
+                    #[inline(always)] #[must_use] fn either<F: FnOnce() -> Self>(mut $self, mut $make_other: F) -> Self $either
+                }
+
+                impl<F: FnOnce() -> $name<A>, A: Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitOr<F> for $name<A $(, $($g_ty),+)?> {
+                    type Output = $name<A $(, $($g_ty),+)?>;
+                    #[inline(always)] #[must_use] fn bitor(mut self, mut make_other: F) -> $name<A $(, $($g_ty),+)?> { self.either(make_other) }
+                }
+
+                test_alternative!($name<u64>);
+            }
+        }
+    }
+}
+
+/// Implement `Alternative` (and its superclasses automatically) after a definition.
+#[macro_export]
+macro_rules! alternative {
+    ($name:ident<A $(, $($g_ty:ident $(: $g_bound:tt $(+ $g_bounds:tt)*)?),+)?>: fn empty() $empty:block fn either($self:ident, $make_other:ident) $either:block) => {
+        paste! {
+            $crate::prelude::applicative! {
+                $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
+
+                fn consume($a) $consume
+
+                fn tie(self, af) {
+                    self.bind(move |a| af.bind(move |f| consume(f(a))))
+                }
+            }
+
+            $crate::prelude::just_alternative! {
+                $name<A $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?>:
+
+                fn empty() $empty
+
+                fn either($self, $make_other) $either
+            }
+        }
+
+    };
+}
+
 /// Test the monad laws.
 #[macro_export]
 macro_rules! test_monad {
-    ($name:ident<A>) => {
+    ($name:ident<u64>) => {
         quickcheck::quickcheck! {
             fn prop_monad_left_identity(a: u64) -> bool {
                 use $crate::entropy::hash_consume as f;
@@ -221,7 +295,13 @@ macro_rules! monad {
                     #[inline(always)] #[must_use] fn shr(mut self, mut f: F) -> $name<B $(, $($g_ty),+)?> { self.bind(f) }
                 }
 
-                test_monad!($name<A>);
+                impl<A: Clone $(, $($g_ty $(: $g_bound $(+ $g_bounds)*)?),+)?> core::ops::BitAnd<Self> for $name<A $(, $($g_ty),+)?> {
+                    type Output = Self;
+                    #[inline(always)] #[must_use] fn bitand(mut self, mut other: Self) -> Self { self.seq(other) }
+                }
+
+
+                test_monad!($name<u64>);
             }
         }
     };

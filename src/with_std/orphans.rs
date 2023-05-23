@@ -18,7 +18,7 @@ impl<A: Clone> Functor<A> for Vec<A> {
         v
     }
 }
-test_functor!(Vec<A>);
+test_functor!(Vec<u64>);
 
 impl<A: Clone> Applicative<A> for Vec<A> {
     type Applicative<B: Clone> = Vec<B>;
@@ -34,7 +34,7 @@ impl<A: Clone> Applicative<A> for Vec<A> {
         self.bind(move |a| af.bind(move |f| consume(f(a))))
     }
 }
-test_applicative!(Vec<A>);
+test_applicative!(Vec<u64>);
 
 impl<A: Clone> Monad<A> for Vec<A> {
     type Monad<B: Clone> = Vec<B>;
@@ -47,7 +47,7 @@ impl<A: Clone> Monad<A> for Vec<A> {
         v
     }
 }
-test_monad!(Vec<A>);
+test_monad!(Vec<u64>);
 
 impl<A> Fold for Vec<A> {
     type Item = A;

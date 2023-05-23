@@ -1,6 +1,6 @@
 //! `List` monad.
 
-use crate::prelude::*;
+use crate::{just_alternative, prelude::*};
 
 /// Encodes nondeterminism.
 /// # Use
@@ -174,11 +174,24 @@ monad! {
     List<A>:
 
     fn consume(b) {
-        List(vec![b])
+        list![b]
     }
 
     fn bind(self, f) {
         List(self.0.bind(move |a| f(a).0))
+    }
+}
+
+just_alternative! {
+    List<A>:
+
+    fn empty() {
+        list![]
+    }
+
+    fn either(self, make_other) {
+        self.0.append(&mut make_other().0);
+        self
     }
 }
 

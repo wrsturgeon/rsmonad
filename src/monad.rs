@@ -24,6 +24,15 @@ pub trait Monad<A: Clone>: Applicative<A> {
     {
         self.bind::<Flat, _>(core::convert::identity::<MFlat>)
     }
+    /// Sequence two monadic computations and throw away the first.
+    #[inline(always)]
+    #[must_use]
+    fn seq(self, other: Self) -> Self
+    where
+        Self: Sized,
+    {
+        other
+    }
 }
 
 /// Mutate internal state with some function.
@@ -68,4 +77,11 @@ pub fn join<MMA: Monad<MA, Monad<A> = MA>, MA: Monad<A, Monad<MA> = MMA> + Clone
     mma: MMA,
 ) -> MA {
     mma.join()
+}
+
+/// Sequence two computations and throw away the first.
+#[inline(always)]
+#[allow(clippy::missing_const_for_fn)]
+pub fn seq<MA: Monad<A>, A: Clone>(a: MA, b: MA) -> MA {
+    a.seq(b)
 }

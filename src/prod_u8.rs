@@ -7,6 +7,7 @@ use crate::prelude::*;
 /// Sum monoid.
 /// ```rust
 /// use rsmonad::prelude::*;
+/// # #[cfg(feature = "std")]
 /// assert_eq!(
 ///     (list![1, 2, 3, 4, 5] % ProductU8).unify(),
 ///     ProductU8(120)

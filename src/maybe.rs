@@ -1,6 +1,6 @@
 //! `Maybe` monad.
 
-use crate::prelude::*;
+use crate::{just_alternative, prelude::*};
 
 /// Encodes the possibility of failure.
 /// # Use
@@ -43,6 +43,20 @@ monad! {
         match self {
             Just(a) => f(a),
             Nothing => Nothing,
+        }
+    }
+}
+
+just_alternative! {
+    Maybe<A>:
+
+    fn empty() { Nothing }
+
+    fn either(self, make_other) {
+        if matches!(self, Just(_)) {
+            self
+        } else {
+            make_other()
         }
     }
 }
