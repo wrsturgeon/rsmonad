@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 //! Implementations for types from outside this library that can nonetheless act like Haskell typeclasses, only without operator shorthand.
 
 #![allow(clippy::missing_trait_methods)]

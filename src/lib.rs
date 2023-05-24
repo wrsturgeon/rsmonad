@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 //! Haskell-style monads that support `>>=` out of the box with Rust's `>>`.
 
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)] // TODO: remove `not(test)` after https://github.com/rust-fuzz/arbitrary/pull/74

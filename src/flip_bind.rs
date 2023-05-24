@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 //! Allow different bind implementations for non-returning (i.e. `()`) functions and those that directly return a value.
 //! This way we don't have to explicitly write `Phew(())`, `Nothing`, etc. on the last line.
 

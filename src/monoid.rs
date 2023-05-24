@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 //! Monoids: anytime you can combine two elements of the same type to get a third, and there's an element that does nothing.
 //! E.g. lists with concatenation (`[]` does nothing), numbers with addition and zero, or numbers with multiplication and one.
 
