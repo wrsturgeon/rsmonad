@@ -35,7 +35,7 @@ pub mod prelude {
     //! In general, always import this with `use rsmonad::prelude::*;`.
 
     pub use derive_quickcheck::QuickCheck;
-    pub use quickcheck::quickcheck;
+    pub use quickcheck;
 
     pub use super::entropy::*;
     pub use super::lazy::*;
